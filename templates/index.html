@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gross to Gross Dashboard e Análise Cromex</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        body {
+            padding: 20px;
+            margin-bottom: 3cm;
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        h1 {
+            color: #00B0F0; /* Cor azul Cromex */
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: calc(1.5rem + 1vw); /* Tamanho de fonte responsivo */
+        }
+
+        .container {
+            margin-top: 30px;
+        }
+
+        .btn-primary, .btn-link-bottom {
+            background-color: #00B0F0; /* Cor azul Cromex */
+            border-color: #00B0F0; /* Cor azul Cromex */
+            color: #ffffff; /* Texto branco para o botão de link */
+        }
+
+        .btn-primary:hover, .btn-link-bottom:hover {
+            background-color: #002244; /* Tom mais escuro para o hover */
+            border-color: #002244; /* Tom mais escuro para o hover */
+        }
+
+        /* Caixa de informações futurista para o z-score */
+        .info-box {
+            background: linear-gradient(135deg, #00B0F0 0%, #003366 100%);
+            border-left: 8px solid #003366; /* Borda azul Cromex */
+            border-radius: 10px; /* Bordas arredondadas */
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #ffffff; /* Texto em branco */
+            font-size: calc(1rem + 0.4vw); /* Tamanho de fonte responsivo */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Sombra para efeito futurista */
+        }
+
+        .info-box h4 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .footer-content {
+            margin-top: 50px;
+            text-align: center;
+            color: #00B0F0; /* Cor azul Cromex */
+        }
+
+        .table-responsive {
+            width: 100%;
+            display: block;
+            font-size: calc(0.7rem + 0.2vw); /* Tamanho de fonte responsivo */
+        }
+
+        .table {
+            width: 100%;
+            table-layout: fixed; /* Ajusta a tabela para o layout fixo */
+            word-wrap: break-word; /* Quebra automaticamente o texto */
+        }
+
+        /* Cabeçalho da tabela em azul escuro com letra branca */
+        .table thead th {
+            background-color: #00B0F0; /* Azul escuro */
+            color: #ffffff; /* Texto branco */
+            font-family: 'Arial Narrow', sans-serif;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .table-responsive {
+                font-size: 0.8rem; /* Ajusta o tamanho da fonte em dispositivos móveis */
+            }
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #f8f9fa;
+            padding: 10px 0;
+            text-align: center;
+            color: #333;
+            font-size: 14px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .copyright {
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gross to Gross Dashboard e Análise</h1>
+
+        <!-- Formulário de filtros -->
+        <form method="get" action="/">
+            <div class="form-group">
+                <label for="nome">Nome:</label>
+                <select name="nome" id="nome" class="form-control">
+                    <option value="">Todos</option>
+                    {% for nome in funcionarios %}
+                        <option value="{{ nome }}" {% if nome == selected_nome %}selected{% endif %}>{{ nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="cod_periodo">Código Período:</label>
+                <select name="cod_periodo" id="cod_periodo" class="form-control">
+                    <option value="">Todos</option>
+                    {% for periodo in cod_periodos %}
+                        <option value="{{ periodo }}" {% if periodo == selected_cod_periodo %}selected{% endif %}>{{ periodo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="desc_verba">Descrição da Verba:</label>
+                <select name="desc_verba" id="desc_verba" class="form-control">
+                    <option value="">Todos</option>
+                    {% for verba in verbas %}
+                        <option value="{{ verba }}" {% if verba == selected_desc_verba %}selected{% endif %}>{{ verba }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="xdeb_xcred">Débito e Crédito:</label>
+                <select name="xdeb_xcred" id="xdeb_xcred" class="form-control">
+                    <option value="">Todos</option>
+                    {% for valor in xdeb_xcred_vals %}
+                        <option value="{{ valor }}" {% if valor == selected_xdeb_xcred %}selected{% endif %}>{{ valor }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+        </form>
+
+        <!-- Botão para ir para a última linha da tabela -->
+        <div class="text-right mb-3">
+            <a href="#last-row" class="btn btn-link-bottom">Ir para a Última Linha</a>
+        </div>
+
+        <!-- Exibir a quantidade de linhas da tabela -->
+        <p>Total de linhas na tabela: {{ row_count }}</p>
+
+        <h2>Outliers dos Últimos 12 Meses</h2>
+        <div class="table-responsive">
+            {{ outliers_display | safe }} <!-- Somente a tabela gerada pelo Python -->
+        </div>
+
+        <!-- Identificador para rolar até a última linha -->
+        <div id="last-row"></div>
+
+        <!-- Caixa de informações futurista sobre o z-score -->
+        <div class="info-box">
+            <h4>O que é z-score?</h4>
+            <p>
+                O z-score é uma medida estatística que indica quantos desvios padrão um valor está distante da média. 
+                Na nossa análise, utilizamos o z-score para identificar outliers, ou seja, valores de verbas que estão significativamente 
+                fora do padrão esperado. Um valor é considerado um outlier se estiver mais de 2 desvios padrão acima ou abaixo da média, 
+                ajudando a identificar flutuações anormais, como pagamentos únicos ou eventos extraordinários.
+            </p>
+        </div>
+    </div>
+    
+    <footer>
+        <p>By Anderson Marinho : <a href="https://advmarinho.github.io/PortifolioRH/">https://advmarinho.github.io/PortifolioRH/</a></p>
+    </footer>
+</body>
+</html>
