@@ -1,21 +1,69 @@
-from tkinter import Tk
-from tkinter.filedialog import askopenfilename
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, send_file
 import pandas as pd
 import threading
 import itertools
 import time
 import sys
 from scipy.stats import zscore
+import webbrowser
+import os
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+# Variável global para controle da animação de carregamento
+carregando = False
+
+# Função para exibir a introdução no console
+def exibir_informacoes_do_desenvolvedor():
+    """
+    Exibe informações sobre o desenvolvedor Anderson Marinho no console.
+    """
+    # Códigos de escape ANSI para colorir o texto no console
+    cores = {
+        'azul': '\033[94m',  # Texto azul
+        'negrito': '\033[1m', # Texto negrito
+        'reset': '\033[0m'    # Reset para a cor padrão
+    }
+
+    # Informação para ser exibida no console
+    informacao = f"""
+{cores['azul']}{cores['negrito']}Bem-vindo ao Analisador de Folha de Pagamento! - Gross to Gross Dashboard e Análise{cores['reset']}
+Desenvolvido por: Anderson Marinho - Especialista em RH, DP, Advocacia e ADS
+Conectando a excelência em gestão de pessoas, conformidade legal e automação de processos.
+
+Portfólio: {cores['azul']}https://advmarinho.github.io/PortifolioRH/#servicos{cores['reset']}
+GitHub: {cores['azul']}https://github.com/advmarinho/ {cores['reset']}
+"""
+
+    # Exibe a informação no console
+    print(informacao)
+
+# Chama a função para exibir as informações do desenvolvedor ao iniciar o script
+exibir_informacoes_do_desenvolvedor()
 
 # Função para a animação de carregamento
 def animacao_carregamento():
+    """
+    Exibe uma animação de carregamento no console durante a execução do processo de análise de folha de pagamento.
+    A animação usa caracteres especiais para criar um efeito de rotação e exibe a mensagem 'Carregando' em azul.
+    """
+    cores = {
+        'azul': '\033[94m',   # ANSI escape code para texto azul
+        'reset': '\033[0m'    # Reset para retornar à cor padrão
+    }
+
+    print(f"{cores['azul']}Ação: Análise de Folha de Pagamento em Progresso...{cores['reset']}")
+
     for c in itertools.cycle(['|', '/', '-', '\\']):
         if not carregando:
             break
-        sys.stdout.write('\rCarregando ' + c)
+        sys.stdout.write(f"\r{cores['azul']}Carregando {c}{cores['reset']}")
         sys.stdout.flush()
         time.sleep(0.1)
+
+    # Mensagem final quando o carregamento for concluído
+    sys.stdout.write('\rConcluído!                \n')
+
 
 # Inicializar tkinter e abrir diálogo para selecionar o arquivo CSV
 Tk().withdraw()  # Ocultar a janela principal do tkinter
@@ -176,20 +224,39 @@ def prepare_outliers_for_display(df_outliers):
     return "Nenhum outlier encontrado nos últimos 12 meses.", 0
 
 
-
-
-
 # Aplicar filtros e cálculos
 df_ultimos_12_meses = filtrar_ultimos_12_meses(df)
 df_outliers = calcular_tendencias(df_ultimos_12_meses)
 resultados_eda = eda_basica(df)
 outliers_display = prepare_outliers_for_display(df_outliers)
 
+# **Adicionar a funcionalidade para salvar o resultado em um arquivo Excel**
+try:
+    df_outliers.to_excel("outliers_result.xlsx", index=False)
+    print("Os resultados foram salvos no arquivo 'outliers_result.xlsx'.")
+except Exception as e:
+    print(f"Erro ao salvar o arquivo Excel: {e}")
 
 
 
 # Configuração do Flask
-app = Flask(__name__)
+app = Flask(__name__, template_folder=os.path.join(os.path.dirname(__file__), 'templates'))
+
+@app.route('/download_excel')
+def download_excel():
+    try:
+        # Defina o caminho absoluto para salvar o arquivo
+        excel_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "outliers_result.xlsx")
+        
+        # Gerar o arquivo Excel
+        df_outliers.to_excel(excel_path, index=False)
+        
+        # Enviar o arquivo para download
+        return send_file(excel_path, as_attachment=True)
+    except Exception as e:
+        print(f"Erro ao gerar o arquivo Excel: {e}")
+        return "Erro ao gerar o arquivo Excel.", 500
+
 
 @app.route('/')
 def home():
@@ -234,12 +301,21 @@ def home():
                                selected_desc_verba=desc_verba_filtro,
                                selected_xdeb_xcred=xdeb_xcred_filtro,
                                outliers_display=outliers_display,
-                               row_count=row_count)  # Adicionando row_count para o template
+                               row_count=row_count)
     except Exception as e:
         print(f"Erro ao renderizar a página inicial: {e}")
         return "Ocorreu um erro ao processar sua solicitação.", 500
 
 
-if __name__ == '__main__':
-    app.run(debug=False)
+def open_browser():
+    # Abre o navegador na URL localhost na porta 5000
+    print("\033[93m\nCopie e Cole o endereço no navegador - http://127.0.0.1:5000  \n\033[0m")
+    
+    webbrowser.open_new("http://127.0.0.1:5000")
 
+
+if __name__ == '__main__':
+    # Inicia um thread para abrir o navegador após 1 segundo
+    threading.Timer(1, open_browser).start()
+    # Inicia o servidor Flask na porta 5000
+    app.run(debug=False, port=5000)
