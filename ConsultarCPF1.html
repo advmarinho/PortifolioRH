@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extrair CPF</title>
+    <style>
+        /* Reset básico para remover margens e padding padrão */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ece9e6, #ffffff);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 1.8em;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        input[type="file"] {
+            padding: 12px;
+            border: 2px dashed #6c63ff;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:hover {
+            border-color: #574b90;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #6c63ff;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        button:hover {
+            background-color: #574b90;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f1f1f1;
+            border-left: 4px solid #6c63ff;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        #result h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #result p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #6c63ff;
+            border: 2px solid #6c63ff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        a:hover {
+            background-color: #6c63ff;
+            color: #fff;
+        }
+
+        /* Responsividade */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Extrair CPF</h1>
+        
+        <div class="input-group">
+            <input type="file" id="pdf-file" accept="application/pdf">
+            <button onclick="processPDF()">Extrair Números</button>
+        </div>
+
+        <div id="result"></div>
+
+        <a href="https://servicos.receita.fazenda.gov.br/Servicos/CPF/ConsultaSituacao/ConsultaPublica.asp" target="_blank">
+            Consultar Situação do CPF na Receita Federal
+        </a>
+    </div>
+
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
+
+    <script>
+        // Função para processar o PDF
+        function processPDF() {
+            const fileInput = document.getElementById('pdf-file');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert("Por favor, selecione um arquivo PDF.");
+                return;
+            }
+
+            const fileReader = new FileReader();
+
+            fileReader.onload = function() {
+                const typedArray = new Uint8Array(this.result);
+                extractTextFromPDF(typedArray);
+            };
+
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        // Função para extrair o texto do PDF usando PDF.js
+        function extractTextFromPDF(pdfData) {
+            const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+
+            loadingTask.promise.then(function(pdf) {
+                let textPromises = [];
+
+                for (let i = 0; i < pdf.numPages; i++) {
+                    textPromises.push(pdf.getPage(i + 1).then(function(page) {
+                        return page.getTextContent().then(function(textContent) {
+                            return textContent.items.map(item => item.str).join(' ');
+                        });
+                    }));
+                }
+
+                Promise.all(textPromises).then(function(pagesText) {
+                    const fullText = pagesText.join(' ');
+                    extractCPFs(fullText);
+                });
+            }).catch(function(error){
+                alert("Erro ao carregar o PDF: " + error.message);
+            });
+        }
+
+        // Função para localizar números com 11 ou 14 dígitos usando Regex
+        function extractCPFs(text) {
+            const cpfPattern = /\b\d{3}[.\s]?\d{3}[.\s]?\d{3}[-\s]?\d{2}\b|\b\d{11}\b|\b\d{14}\b/g;
+            const matches = text.match(cpfPattern);
+
+            const resultDiv = document.getElementById('result');
+            if (matches && matches.length > 0) {
+                resultDiv.innerHTML = `<h3>Números Encontrados:</h3><p>${matches.join('<br>')}</p>`;
+            } else {
+                resultDiv.innerHTML = "<p>Nenhum número encontrado.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
