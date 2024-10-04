@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top:0px!important">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools - Anderson Marinho</title>
+    <link rel='stylesheet' id='wp-block-library-css' href='https://www.hospitaloswaldocruz.org.br/wp-includes/css/dist/block-library/style.min.css?ver=6.5.5' media='all' />
+    <link rel='stylesheet' id='swiper-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/css/lib/swiper-bundle.css?ver=1.0.0' media='all' />
+    <link rel='stylesheet' id='institucional-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/style.css?ver=1.0.0' media='all' />
+    <link rel='stylesheet' id='cf7cf-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/plugins/cf7-conditional-fields/style.css?ver=2.4.4' media='all' />
+    <link rel="icon" href="https://www.hospitaloswaldocruz.org.br/wp-content/uploads/2017/09/hospital-alemao-oswaldo-cruz-favicon.png" sizes="32x32" />
+    <style id='global-styles-inline-css'>
+        body{--wp--preset--color--black: #000000;--wp--preset--color--primary: #007889;--wp--preset--color--primary-dark: #003B4E;--wp--preset--font-size--medium: 22px;--wp--preset--spacing--40: 1rem;}.container { margin-top: var(--wp--preset--spacing--40); } button { background-color: var(--wp--preset--color--primary); } button:hover { background-color: var(--wp--preset--color--primary-dark); }
+        .task-container img { max-width: 100%; margin-top: 10px; }
+        .comment-box {
+            border-bottom: 1px solid #d3d3d3;
+            padding: 10px;
+            min-height: 100px;
+            cursor: text;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gente e Gestão Adm. Pessoal - HAOC</h1>
+        
+        <div class="task-container">
+            <div class="task-header">1. Adiantamento quinzenal</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o adiantamento quinzenal..."></div>
+        </div>
+        
+        <div class="task-container">
+            <div class="task-header">2. Folha de Pagamento</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a folha de pagamento..."></div>
+        </div>
+        
+        <div class="task-container">
+            <div class="task-header">3. Importação de Horas dos Médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a importação de horas dos médicos..."></div>
+        </div>
+        
+        <div class="task-container">
+            <div class="task-header">4. Conferência da Importação de Horas dos Médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a conferência da importação de horas dos médicos..."></div>
+        </div>
+        
+        <div class="task-container">
+            <div class="task-header">5. Envio de Informações Financeiras</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o envio de informações financeiras..."></div>
+        </div>
+        
+        <button id="exportButton" style="color: white;">Exportar para Word</button>
+        <button id="saveButton" style="color: white;">Salvar Localmente</button>
+        <input type="file" id="importFile" style="display: none;" accept="application/json" />
+        <button id="importButton" style="color: white;">Importar</button>
+    </div>
+
+    <script>
+        // Função para salvar automaticamente a cada 3 minutos
+        function autoSave() {
+            const tasks = [];
+            document.querySelectorAll(".task-container").forEach(task => {
+                const header = task.querySelector(".task-header").textContent;
+                const content = task.querySelector(".comment-box").innerHTML;
+                tasks.push({ header, content });
+            });
+            const blob = new Blob([JSON.stringify(tasks)], { type: 'application/json' });
+            const fileHandle = "acoes_haoc.json";
+            // Salvar diretamente sem solicitar ao usuário
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileHandle;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        // Salva a cada 3 minutos
+        setInterval(autoSave, 180000);
+
+        // Alerta de saída da página
+        window.addEventListener("beforeunload", (event) => {
+            event.preventDefault();
+            event.returnValue = "Você tem alterações não salvas. Tem certeza de que deseja sair?";
+        });
+
+        document.getElementById("exportButton").addEventListener("click", () => {
+            const container = document.querySelector(".container");
+            const clonedContainer = container.cloneNode(true);
+            clonedContainer.querySelectorAll(".comment-box").forEach(box => {
+                box.outerHTML = box.innerHTML;
+            });
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>Gente e Gestão Adm. Pessoal - Exportação</title>
+</head>
+<body>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <tr>
+        <td rowspan="2" style="width: 25%; text-align: center;">
+            <img src="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/images/logo-haoc-institucional.png" alt="Hospital Alemão Oswaldo Cruz" style="width: 4.08cm; height: 1.55cm;">
+        </td>
+        <td style="width: 50%; text-align: center;">
+            <strong>Hospital Alemão Oswaldo Cruz</strong><br>
+            Gente e Gestão<br>
+            Folha de Pagamento
+        </td>
+        <td style="width: 25%; text-align: center;">
+            <strong>Versão: 1.0</strong><br>
+            Data da última revisão: dd/mm/aaaa
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="text-align: left;">
+            <p>Criação:</p>
+            <p>Revisão/Aprovação: Luciana Martins dos Santos</p>
+            <p>Áreas de Aplicação: Administração de Pessoal</p>
+        </td>
+    </tr>
+</table>
+${clonedContainer.innerHTML}
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'application/msword' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "acoes_haoc.doc";
+            link.click();
+        });
+
+        document.getElementById("saveButton").addEventListener("click", () => {
+            const tasks = [];
+            document.querySelectorAll(".task-container").forEach(task => {
+                const header = task.querySelector(".task-header").textContent;
+                const content = task.querySelector(".comment-box").innerHTML;
+                tasks.push({ header, content });
+            });
+            const blob = new Blob([JSON.stringify(tasks)], { type: 'application/json' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "acoes_haoc.json";
+            link.click();
+        });
+
+        document.getElementById("importButton").addEventListener("click", () => {
+            document.getElementById("importFile").click();
+        });
+
+        document.getElementById("importFile").addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData && Array.isArray(importedData)) {
+                        const containers = document.querySelectorAll(".task-container");
+                        importedData.forEach((taskData, index) => {
+                            if (containers[index]) {
+                                containers[index].querySelector(".comment-box").innerHTML = taskData.content;
+                            }
+                        });
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>
