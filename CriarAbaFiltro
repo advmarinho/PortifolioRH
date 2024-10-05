@@ -1,0 +1,102 @@
+Sub CriarAbasEFiltrarComBaseEmChefia_GPT()
+    Dim linhaCorrente As Long
+    Dim ultimaLinha As Long
+    Dim nomeNovaPlanilha As String
+    Dim wsChefia As Worksheet
+    Dim wsCalculoFolha As Worksheet
+    Dim novaPlanilha As Worksheet
+    Dim rngFiltrado As Range
+
+    ' Defina as planilhas de trabalho
+    Set wsChefia = ThisWorkbook.Sheets("Chefia")
+    Set wsCalculoFolha = ThisWorkbook.Sheets("Cálculo Folha")
+
+    ' Encontre a última linha na coluna A da planilha Chefia
+    ultimaLinha = wsChefia.Cells(wsChefia.Rows.Count, "A").End(xlUp).Row
+
+    ' Loop através das linhas da planilha Chefia
+    For linhaCorrente = 2 To ultimaLinha
+        ' Obtenha o nome da nova planilha
+        nomeNovaPlanilha = wsChefia.Cells(linhaCorrente, 1).Value
+
+        ' Verifique se o nome da planilha não está vazio
+        If nomeNovaPlanilha <> "" Then
+            ' Crie uma nova planilha com o nome obtido
+            Set novaPlanilha = ThisWorkbook.Sheets.Add
+            novaPlanilha.Name = nomeNovaPlanilha
+            
+            ' Limpe o conteúdo da coluna C a partir da célula C7/C8 até o final da coluna
+            ThisWorkbook.Sheets("Hora Extra").Range("C7:C" & ThisWorkbook.Sheets("Hora Extra").Cells(Rows.Count, "C").End(xlUp).Row).ClearContents
+            ThisWorkbook.Sheets("Promoções e Transferências").Range("C7:C" & ThisWorkbook.Sheets("Promoções e Transferências").Cells(Rows.Count, "C").End(xlUp).Row).ClearContents
+            ThisWorkbook.Sheets("Férias").Range("C8:C" & ThisWorkbook.Sheets("Férias").Cells(Rows.Count, "C").End(xlUp).Row).ClearContents
+            ThisWorkbook.Sheets("Desligamentos").Range("C7:C" & ThisWorkbook.Sheets("Desligamentos").Cells(Rows.Count, "C").End(xlUp).Row).ClearContents
+            ThisWorkbook.Sheets("Treinamentos").Range("C7:C" & ThisWorkbook.Sheets("Treinamentos").Cells(Rows.Count, "C").End(xlUp).Row).ClearContents
+
+
+            ' Filtre a planilha "Cálculo Folha" com base no nome
+            wsCalculoFolha.AutoFilterMode = False ' Desativa qualquer filtro existente
+            wsCalculoFolha.Range("I6").AutoFilter Field:=9, Criteria1:=nomeNovaPlanilha
+
+            ' Copie os dados filtrados da planilha "Cálculo Folha" para a nova planilha
+            Set rngFiltrado = wsCalculoFolha.UsedRange.SpecialCells(xlCellTypeVisible)
+            rngFiltrado.Copy novaPlanilha.Range("A1")
+
+            ' Copie as fórmulas da planilha "Cálculo Folha" para a nova planilha
+            wsCalculoFolha.UsedRange.SpecialCells(xlCellTypeVisible).Copy
+            novaPlanilha.Cells(1, 1).PasteSpecial Paste:=xlPasteFormulas
+            
+            ' Desligue o filtro na planilha "Cálculo Folha"
+            wsCalculoFolha.AutoFilterMode = False
+            
+            ' Copie a imagem da célula na planilha "Cálculo Folha"
+
+            
+            ' Desligue as linhas de grade na nova planilha
+            ActiveWindow.DisplayGridlines = False
+            
+            ' Defina o zoom da nova planilha para 90%
+            ActiveWindow.Zoom = 90
+            
+            ' Copie a largura das colunas da planilha "Cálculo Folha" para a nova planilha
+            wsCalculoFolha.Cells.EntireColumn.Copy
+            novaPlanilha.Cells.EntireColumn.PasteSpecial Paste:=xlPasteColumnWidths
+            Application.CutCopyMode = False ' Limpe a área de transferência
+            
+            ' Defina a altura da linha a partir da linha A7 para 12,75
+            novaPlanilha.Rows("7:" & novaPlanilha.Rows.Count).RowHeight = 12.75
+            
+            ' Copie os dados filtrados da coluna C da planilha "Cálculo Folha" para a nova planilha
+            ' Copie os dados da coluna C7 da nova planilha
+            novaPlanilha.Range("C7:C" & novaPlanilha.Cells(Rows.Count, "C").End(xlUp).Row).Copy
+
+            
+            ' Cole os dados na planilha "Hora Extra" na coluna C7
+            ThisWorkbook.Sheets("Hora Extra").Range("C7").PasteSpecial Paste:=xlPasteValues
+            ThisWorkbook.Sheets("Promoções e Transferências").Range("C7").PasteSpecial Paste:=xlPasteValues
+            ThisWorkbook.Sheets("Férias").Range("C8").PasteSpecial Paste:=xlPasteValues
+            ThisWorkbook.Sheets("Desligamentos").Range("C7").PasteSpecial Paste:=xlPasteValues
+            ThisWorkbook.Sheets("Treinamentos").Range("C7").PasteSpecial Paste:=xlPasteValues
+                        
+              ' Salve uma cópia do arquivo no mesmo caminho da planilha principal com o nome da aba
+            Dim CaminhoArquivo As String
+            CaminhoArquivo = ThisWorkbook.Path & "\" & "Bkp_Orçamento" & ".xlsm"
+    
+    ' Salve uma cópia do arquivo com o nome da aba
+    ThisWorkbook.SaveCopyAs CaminhoArquivo
+                        
+        End If
+    Next linhaCorrente
+
+    ' Desligue a visualização da área de transferência
+    Application.CutCopyMode = False
+    
+    
+    ' Exclua as abas "Cálculo Folha" e "Chefia"
+    Application.DisplayAlerts = False ' Desabilita alertas de exclusão
+    ThisWorkbook.Sheets("Cálculo Folha").Delete
+    ThisWorkbook.Sheets("Chefia").Delete
+    Application.DisplayAlerts = True ' Reabilita alertas
+
+    ' Exibir uma mensagem de sucesso
+    MsgBox "Plh Chefia Criado com Sucesso!", vbExclamation
+End Sub
