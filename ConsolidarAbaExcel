@@ -1,0 +1,75 @@
+Sub ConsolidadorVisiveisPorNumeroAbaNew()
+    Dim wsDestino As Worksheet
+    Dim wsOrigem As Worksheet
+    Dim Pasta As Workbook
+    Dim UltimaLinhaDestino As Long
+    Dim Arquivo As String
+    Dim UltimaLinhaOrigem As Long
+    Dim RngVisivel As Range
+    Dim NumeroAba As Integer
+    Dim FilePicker As FileDialog
+    Dim ArquivoSelecionado As Variant
+
+    ' Permitir seleção de arquivos
+    Set FilePicker = Application.FileDialog(msoFileDialogFilePicker)
+    
+    ' Configurar o diálogo de seleção de arquivos
+    With FilePicker
+        .Title = "Selecione os arquivos"
+        .Filters.Clear
+        .Filters.Add "Planilhas do Excel", "*.xls; *.xlsx; *.xlsm"
+        .AllowMultiSelect = True
+        If .Show = -1 Then ' Verificar se algum arquivo foi selecionado
+            ' Continuar o processo
+        Else
+            MsgBox "Nenhum arquivo selecionado.", vbExclamation
+            Exit Sub
+        End If
+    End With
+    
+    ' Solicitar que o usuário insira o número da aba
+    NumeroAba = InputBox("Digite o número da aba que deseja consolidar (1 para a primeira aba, 2 para a segunda, etc.):", "Número da Aba")
+    
+    ' Verificar se o número da aba foi inserido
+    If NumeroAba <= 0 Then
+        MsgBox "Número de aba inválido. Processo cancelado.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Criar uma nova planilha para consolidar os dados
+    Set wsDestino = ThisWorkbook.Sheets.Add
+    wsDestino.Name = "Aba_" & NumeroAba
+    
+    ' Achar a última linha da planilha de destino
+    UltimaLinhaDestino = 1 ' Começar na linha 1 da planilha de destino
+    
+    ' Loop através de cada arquivo selecionado
+    For Each ArquivoSelecionado In FilePicker.SelectedItems
+        ' Abra cada workbook
+        Set Pasta = Workbooks.Open(ArquivoSelecionado)
+        
+        ' Definir a planilha pela posição (aba pelo número fornecido)
+        On Error Resume Next
+        Set wsOrigem = Pasta.Sheets(NumeroAba) ' Usa o número da aba inserido pelo usuário
+        On Error GoTo 0
+        
+        ' Verificar se a aba foi encontrada
+        If wsOrigem Is Nothing Then
+            MsgBox "A aba número " & NumeroAba & " não foi encontrada no arquivo: " & Pasta.Name, vbExclamation
+        Else
+            ' Achar o intervalo visível das colunas B até AH
+            Set RngVisivel = wsOrigem.Range("B1:AD" & wsOrigem.Cells(Rows.Count, 2).End(xlUp).Row).SpecialCells(xlCellTypeVisible)
+            
+            ' Copiar os dados visíveis
+            RngVisivel.Copy wsDestino.Cells(UltimaLinhaDestino, 1)
+            
+            ' Atualizar a última linha de destino
+            UltimaLinhaDestino = wsDestino.Cells(Rows.Count, 1).End(xlUp).Row + 1
+        End If
+        
+        ' Fechar o arquivo sem salvar
+        Pasta.Close False
+    Next ArquivoSelecionado
+    
+    MsgBox "Consolidação concluída!"
+End Sub
