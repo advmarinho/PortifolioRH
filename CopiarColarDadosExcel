@@ -1,0 +1,32 @@
+Sub FixarFormulasNaAbaAtiva_GPT()
+    Dim ws As Worksheet
+    
+    ' Verifique se há uma aba ativa
+    If Not ActiveSheet Is Nothing Then
+        ' Desative o cálculo automático para melhor desempenho
+        Application.Calculation = xlCalculationManual
+        
+        ' Ative a aba atual
+        Set ws = ActiveSheet
+        
+        ' Copie as fórmulas em toda a aba
+        ws.Range("B6:AE600").Copy
+        
+        ' Cole os valores sobre si mesmos para substituir as fórmulas
+        ws.Range("B6:AE600").PasteSpecial Paste:=xlPasteValues
+        
+        ' Limpe a área de transferência
+        Application.CutCopyMode = False
+        
+        ' Reative o cálculo automático
+        Application.Calculation = xlCalculationAutomatic
+        
+        ' Renomeie a aba ativa para "Cálculo Folha"
+        ws.Name = "Cálculo Folha"
+        
+        ' Exiba uma mensagem de sucesso
+        MsgBox "Fórmulas foram fixadas na aba Gestor.", vbInformation
+    Else
+        MsgBox "Nenhuma aba ativa encontrada.", vbExclamation
+    End If
+End Sub
