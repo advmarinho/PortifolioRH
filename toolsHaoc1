@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top:0px!important">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools - Anderson Marinho</title>
+    <link rel='stylesheet' id='wp-block-library-css' href='https://www.hospitaloswaldocruz.org.br/wp-includes/css/dist/block-library/style.min.css?ver=6.5.5' media='all' />
+    <link rel='stylesheet' id='swiper-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/css/lib/swiper-bundle.css?ver=1.0.0' media='all' />
+    <link rel='stylesheet' id='institucional-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/style.css?ver=1.0.0' media='all' />
+    <link rel='stylesheet' id='cf7cf-style-css' href='https://www.hospitaloswaldocruz.org.br/wp-content/plugins/cf7-conditional-fields/style.css?ver=2.4.4' media='all' />
+    <link rel="icon" href="https://www.hospitaloswaldocruz.org.br/wp-content/uploads/2017/09/hospital-alemao-oswaldo-cruz-favicon.png" sizes="32x32" />
+    <style id='global-styles-inline-css'>
+        body{--wp--preset--color--black: #000000;--wp--preset--color--primary: #007889;--wp--preset--color--primary-dark: #003B4E;--wp--preset--font-size--medium: 22px;--wp--preset--spacing--40: 1rem;}.container { margin-top: var(--wp--preset--spacing--40); } button { background-color: var(--wp--preset--color--primary); } button:hover { background-color: var(--wp--preset--color--primary-dark); }
+        .task-container img { max-width: 100%; margin-top: 10px; }
+        .comment-box {
+            border-bottom: 1px solid #d3d3d3;
+            padding: 10px;
+            min-height: 100px;
+            cursor: text;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gente e Gestão Adm. Pessoal - HAOC</h1>
+
+        <div class="task-container">
+            <div class="task-header">1. Adiantamento quinzenal</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o adiantamento quinzenal..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.1. Pasta na rede</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a pasta na rede..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.2. Sistema Sênior</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o Sistema Sênior..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.3. Observações importantes</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre observações importantes..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.4. Cláusula auxílio-doença</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a cláusula auxílio-doença..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.5. Importação de horas dos médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a importação de horas dos médicos..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.6. Conferir importação de horas dos médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre conferir importação de horas dos médicos..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.7. Calcular adiantamento</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre calcular adiantamento..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.8. Conferir adiantamento</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre conferir adiantamento..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">1.9. Informações financeiras</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre informações financeiras..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header"><span style="font-weight: bold;">2.0. Folha de Pagamento</span></div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a folha de pagamento..."></div>
+        </div>
+        
+
+        <div class="task-container">
+            <div class="task-header">2.1. Pasta na rede</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre a pasta na rede..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.2. Sistema Sênior</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o Sistema Sênior..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">Lançamento das variáveis</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o lançamento das variáveis..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">Proporcionalidade</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre proporcionalidade..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">Adiantamento da Cláusula Auxílio Doença</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre adiantamento da cláusula auxílio-doença..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.3. Desconto da Cláusula Auxílio-Doença</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre desconto da cláusula auxílio-doença..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.4. Parcelamento do saldo negativo</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre parcelamento do saldo negativo..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.5. Refeição dos médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre refeição dos médicos..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.6. Lançamento das horas dos médicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre lançamento das horas dos médicos..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.7. Lançamento das horas dos professores</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre lançamento das horas dos professores..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.8. Cadastro de Sócio Sindicato – Mensalidade Sindical</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre cadastro de sócio sindicato – mensalidade sindical..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.9. Cadastro de Sócio Sindicato – Contribuição Assistencial</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre cadastro de sócio sindicato – contribuição assistencial..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.10. Lançamento do Rateio – Sustentabilidade e Responsabilidade Social</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre lançamento do rateio – sustentabilidade e responsabilidade social..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.11. Empréstimo Consignado Safra</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre empréstimo consignado Safra..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.12. Empréstimo Consignado Itaú</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre empréstimo consignado Itaú..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">2.13. Saldo Negativo x Empréstimo Consignado</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre saldo negativo x empréstimo consignado..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3. Pós Folha de Pagamento</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre pós folha de pagamento..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.1. Fechamento consignado Safra</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre fechamento consignado Safra..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.2. Margem consignado Safra</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre margem consignado Safra..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.3. Educa HAOC</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre Educa HAOC..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.4. Relatório de horas dos médicos do PA (Pronto Atendimento)</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre relatório de horas dos médicos do PA..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.5. Pensão alimentícia</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre pensão alimentícia..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.6. Repasses Sindicatos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre repasses sindicatos..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.7. Lançamentos dos autônomos no sênior</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre lançamentos dos autônomos no sênior..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">3.8. Relatório sustentabilidade</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre relatório sustentabilidade..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">E1. Exceções para mapeamento - Ponto Eletrônico</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre exceções para mapeamento do ponto eletrônico..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header">E2. Exceções para mapeamento - Benefícios</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre exceções para mapeamento de benefícios..."></div>
+        </div>
+
+        <div class="task-container">
+            <div class="task-header" style="font-weight: bold;">E3. Exceções para mapeamento - Folha de Pagamento</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre exceções para mapeamento da folha de pagamento..."></div>
+        </div>
+        
+
+        <div class="task-container">
+            <div class="task-header">E4. Exceções para mapeamento - e-Social</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre exceções para mapeamento da folha de pagamento..."></div>
+        </div>        
+
+        <div class="task-container">
+            <div class="task-header">E5. Exceções para mapeamento - Auditorias - JCI e E&Y</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre exceções para mapeamento da folha de pagamento..."></div>
+        </div>  
+        
+
+        <!-- Contabilização -->
+        <div class="task-container">
+            <div class="task-header">C1. Início do processo Contabilização</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o início do processo de contabilização..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C2. Check list</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o checklist de contabilização..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C3. Resumo da folha</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre o resumo da folha..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C4. Benefícios</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre benefícios para contabilização..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C5. Provisão</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre provisão..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C6. Banco de horas</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre banco de horas..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C6.1 Conciliação Banco de Horas</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre conciliação do banco de horas..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">C6.2 Arquivo Banco de Horas</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre arquivo de banco de horas..."></div>
+        </div>
+
+        <!-- eSocial e Encargos -->
+        <div class="task-container">
+            <div class="task-header">S1. Envio dos eventos não periódicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre envio dos eventos não periódicos no eSocial..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S2. Consulta Pendências</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre consulta de pendências no eSocial..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S3. Envio dos eventos Periódicos</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre envio dos eventos periódicos no eSocial..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S4. FGTS</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre FGTS e conferências..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S4.1 Relatório FGTS</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre relatório FGTS..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S4.2 Alteração Código GPS</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre alteração do código GPS..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S4.3 Arquivo SEFIP</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre arquivo SEFIP..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S5. INSS</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre envio de informações de INSS..."></div>
+        </div>
+        <div class="task-container">
+            <div class="task-header">S6. Imposto de Renda</div>
+            <div contenteditable="true" class="comment-box" placeholder="Comentário sobre conciliação de imposto de renda..."></div>
+        </div>        
+
+
+        <button id="exportButton" style="color: white;">Exportar para Word</button>
+        <button id="saveButton" style="color: white;">Salvar Localmente</button>
+        <input type="file" id="importFile" style="display: none;" accept="application/json" />
+        <button id="importButton" style="color: white;">Importar</button>
+    </div>
+<footer style="text-align: center; margin-top: 20px; font-family: Arial, sans-serif; font-size: 14px; color: #999;background-color: #003B4E; padding: 10px; color: rgb(255, 255, 255);">
+    <p>Anderson Marinho - HAOC</p>
+</footer>
+
+<script>
+        // Função para salvar automaticamente a cada 3 minutos
+        function autoSave() {
+            const tasks = [];
+            document.querySelectorAll(".task-container").forEach(task => {
+                const header = task.querySelector(".task-header").textContent;
+                const content = task.querySelector(".comment-box").innerHTML;
+                tasks.push({ header, content });
+            });
+            const blob = new Blob([JSON.stringify(tasks)], { type: 'application/json' });
+            const fileHandle = "acoes_haoc.json";
+            // Salvar diretamente sem solicitar ao usuário
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = fileHandle;
+            a.style.display = "none";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+        // Salva a cada 3 minutos
+        setInterval(autoSave, 18000000);
+
+        // Alerta de saída da página
+        window.addEventListener("beforeunload", (event) => {
+            event.preventDefault();
+            event.returnValue = "Você tem alterações não salvas. Tem certeza de que deseja sair?";
+        });
+
+        document.getElementById("exportButton").addEventListener("click", () => {
+            const container = document.querySelector(".container");
+            const clonedContainer = container.cloneNode(true);
+            clonedContainer.querySelectorAll(".comment-box").forEach(box => {
+                box.outerHTML = box.innerHTML;
+            });
+            const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>Gente e Gestão Adm. Pessoal - Exportação</title>
+</head>
+<body>
+<table border="1" style="width: 100%; border-collapse: collapse;">
+    <tr>
+        <td rowspan="2" style="width: 25%; text-align: center;">
+            <img src="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/images/logo-haoc-institucional.png" alt="Hospital Alemão Oswaldo Cruz" style="width: 4.08cm; height: 1.55cm;">
+        </td>
+        <td style="width: 50%; text-align: center;">
+            <strong>Hospital Alemão Oswaldo Cruz</strong><br>
+            Gente e Gestão<br>
+            Folha de Pagamento
+        </td>
+        <td style="width: 25%; text-align: center;">
+            <strong>Versão: 1.0</strong><br>
+            Data da última revisão: dd/mm/aaaa
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="text-align: left;">
+            <p>Criação:</p>
+            <p>Revisão/Aprovação: Luciana Martins dos Santos</p>
+            <p>Áreas de Aplicação: Administração de Pessoal</p>
+        </td>
+    </tr>
+</table>
+${clonedContainer.innerHTML}
+
+</body>
+</html>`;
+
+            const blob = new Blob([htmlContent], { type: 'application/msword' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "acoes_haoc.doc";
+            link.click();
+        });
+
+        document.getElementById("saveButton").addEventListener("click", () => {
+            const tasks = [];
+            document.querySelectorAll(".task-container").forEach(task => {
+                const header = task.querySelector(".task-header").textContent;
+                const content = task.querySelector(".comment-box").innerHTML;
+                tasks.push({ header, content });
+            });
+            const blob = new Blob([JSON.stringify(tasks)], { type: 'application/json' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "acoes_haoc.json";
+            link.click();
+        });
+
+        document.getElementById("importButton").addEventListener("click", () => {
+            document.getElementById("importFile").click();
+        });
+
+        document.getElementById("importFile").addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData && Array.isArray(importedData)) {
+                        const containers = document.querySelectorAll(".task-container");
+                        importedData.forEach((taskData, index) => {
+                            if (containers[index]) {
+                                containers[index].querySelector(".comment-box").innerHTML = taskData.content;
+                            }
+                        });
+                    }
+                };
+                reader.readAsText(file);
+            }
+        });
+    </script>
+</body>
+</html>
