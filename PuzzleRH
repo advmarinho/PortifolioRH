@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quebra-Cabeça HAOC</title>
+  <link rel='stylesheet' id='wp-block-library-css' href='https://www.hospitaloswaldocruz.org.br/wp-includes/css/dist/block-library/style.min.css?ver=6.5.5' media='all' />
+  <style>
+    body {
+      --wp--preset--color--primary: #007889; /* Cor do Hospital Oswaldo Cruz */
+      background-color: var(--wp--preset--color--primary);
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding: 20px;
+      color: white;
+    }
+    .container {
+      display: flex;
+      width: 100%;
+    }
+    .question-section {
+      flex: 1;
+      margin-right: 20px;
+    }
+    .puzzle-section {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .puzzle {
+      display: grid;
+      grid-template-columns: repeat(3, 6cm);
+      grid-gap: 10px;
+    }
+    .piece {
+      width: 6cm;
+      height: 6cm;
+      background-color: #007e52; /* Verde do padrão Oswaldo Cruz */
+      text-align: center;
+      vertical-align: middle;
+      font-size: 16px;
+      color: white;
+      line-height: 6cm;
+      cursor: pointer;
+      border: 2px solid transparent;
+      clip-path: polygon(10% 0%, 90% 0%, 100% 10%, 100% 90%, 90% 100%, 10% 100%, 0% 90%, 0% 10%);
+      transition: border-color 0.3s ease;
+      position: relative;
+    }
+    .piece::before {
+      content: 'HAOC';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-weight: bold;
+    }
+    .piece:hover {
+      border-color: #33cc33; /* Verde HAOC */
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% {
+        border-color: #33cc33;
+      }
+      50% {
+        border-color: transparent;
+      }
+      100% {
+        border-color: #33cc33;
+      }
+    }
+    .revealed {
+      background-color: #007e52; /* Verde do padrão Oswaldo Cruz */
+      color: white;
+    }
+    .hidden {
+      color: transparent;
+    }
+    .question {
+      margin-top: 30px;
+    }
+    button {
+      background-color: #33cc33;
+      border: none;
+      color: white;
+      padding: 15px 30px;
+      margin: 10px 0;
+      cursor: pointer;
+      font-size: 18px;
+      border-radius: 5px;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #28a745;
+    }
+    p#questionText {
+      margin-top: 30px;
+      font-size: 18px;
+    }
+    video {
+      display: none;
+      width: 100%;
+      height: auto;
+    }
+    .video-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: bold;
+      pointer-events: none;
+    }
+    .history {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #33cc33;
+      background-color: #ffffff;
+      color: black;
+    }
+    #historyList {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    #easterEgg {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      font-size: 10px;
+      color: gray;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="question-section">
+    <h2>Desvendando o HAOC!</h2>
+    <p>Clique nas peças para responder as perguntas e revelar a mensagem final!</p>
+    <p>Caso a resposta esteja correta, o vídeo será reproduzido</p>
+    
+    <div class="question" id="questionBox">
+      <p id="questionText">Clique em uma peça para começar.</p>
+      <div id="options" style="display: none;">
+        <button id="optionA">A</button>
+        <button id="optionB">B</button>
+        <button id="optionC">C</button>
+      </div>
+    </div>
+    <div class="history" id="historyBox">
+      <h3>Respostas Corretas</h3>
+      <ul id="historyList"></ul>
+    </div>
+  </div>
+
+  <div class="puzzle-section">
+    <div class="puzzle" id="puzzle">
+    </div>
+  </div>
+</div>
+
+<div id="easterEgg">HAOC</div>
+
+<script>
+  const questionsData = [
+    {
+      question: "I-Em qual campo é informado os valores de Abono Pecuniário a venda de 10 dias de Férias no informe de Rendimentos?", 
+      options: ['A) Campo de Rendimentos Tributáveis', 'B) Campo de Rendimentos Exclusivos', 'C) Campo de Rendimentos Isentos e Não Tributáveis'], 
+      correctAnswer: 'C',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video1.mp4",
+      message: 'Colaboração'
+    },
+    {
+      question: "II-Quantos funcionários tiveram desconto de 6% na folha de outubro/2024 para VT?", 
+      options: ['A) 150 funcionários', 'B) 200 funcionários', 'C) 250 funcionários'], 
+      correctAnswer: 'A',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video2.mp4",
+      message: 'HAOC'
+    },
+    {
+      question: "III-Quantos incidentes de ponto por passar da 10ª hora tivemos em outubro/2024?", 
+      options: ['A) 10 incidentes', 'B) 25 incidentes', 'C) 30 incidentes'], 
+      correctAnswer: 'B',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video3.mp4",
+      message: 'Juntos'
+    },
+    {
+      question: "IV-Qual prazo para entrega de atestado no HAOC?", 
+      options: ['A) 48 horas após o retorno', 'B) 72 horas após o retorno', 'C) 24 horas após o retorno'], 
+      correctAnswer: 'A',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video4.mp4",
+      message: 'Somos'
+    },
+    {
+      question: "V-Quantas Admissões cadastramos nos últimos 12 meses?", 
+      options: ['A) 200', 'B) 300', 'C) 150'], 
+      correctAnswer: 'B',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video5.mp4",
+      message: 'Mais'
+    },
+    {
+      question: "VI-Quantos sistemas são envolvidos para o envio do líquido da folha HAOC?", 
+      options: ['A) Senior-Tasy-Safra', 'B) Tasy-Safra-Senior', 'C) Safra-Tasy-Senior'], 
+      correctAnswer: 'A',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video6.mp4",
+      message: 'Fortes'
+    },
+    {
+      question: "VII-Quantos funcionários foram admitidos no HAOC nos últimos 10 meses?", 
+      options: ['A) 100 funcionários', 'B) 150 funcionários', 'C) 200 funcionários'], 
+      correctAnswer: 'C',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video7.mp4",
+      message: 'Time!'
+    },
+    {
+      question: "VIII-Quantos dias a catraca é bloqueada para quem não fez os treinamentos na admissão?", 
+      options: ['A) 7 dias', 'B) 10 dias', 'C) 14 dias'], 
+      correctAnswer: 'A',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video8.mp4",
+      message: 'Gente'
+    },
+    {
+      question: "IX-Quantos períodos podem ser fracionadas as férias, e quantos dias mínimos HAOC?", 
+      options: ['A) Podem ser fracionadas em 2 períodos, sendo o mínimo de 7 dias.', 'B) Podem ser fracionadas em 3 períodos, sendo o mínimo de 14 dias.', 'C) Podem ser fracionadas em 4 períodos, sendo o mínimo de 10 dias.'], 
+      correctAnswer: 'B',
+      videoPath: "C:/Users/19287/Documents/Videos MeninoRH/video9.mp4",
+      message: 'Gestão!'
+    }
+  ];
+
+  const puzzleContainer = document.getElementById('puzzle');
+
+  questionsData.forEach((questionData, index) => {
+    const piece = document.createElement('div');
+    piece.className = 'piece hidden';
+    piece.id = `piece${index + 1}`;
+    piece.dataset.questionIndex = index;
+    const video = document.createElement('video');
+    video.id = `video${index + 1}`;
+    video.controls = true;
+    const source = document.createElement('source');
+    source.src = questionData.videoPath;
+    source.type = 'video/mp4';
+    video.appendChild(source);
+    piece.appendChild(video);
+    puzzleContainer.appendChild(piece);
+  });
+
+  const pieces = document.querySelectorAll('.piece');
+  const questionText = document.getElementById('questionText');
+  const options = document.getElementById('options');
+  const optionButtons = [
+    document.getElementById('optionA'),
+    document.getElementById('optionB'),
+    document.getElementById('optionC')
+  ];
+  const historyList = document.getElementById('historyList');
+  const easterEgg = document.getElementById('easterEgg');
+  
+  let currentPiece;
+
+  pieces.forEach(piece => {
+    piece.addEventListener('click', () => {
+      currentPiece = piece;
+      const questionIndex = piece.dataset.questionIndex;
+      showQuestion(questionIndex);
+    });
+  });
+
+  function showQuestion(index) {
+    const questionData = questionsData[index];
+    questionText.innerHTML = questionData.question;
+    optionButtons.forEach((button, i) => {
+      button.textContent = questionData.options[i];
+    });
+    options.style.display = 'block';
+  }
+
+  function revealPiece() {
+    currentPiece.classList.remove('hidden');
+    currentPiece.classList.add('revealed');
+    const video = currentPiece.querySelector('video');
+    if (video) {
+      video.style.display = 'block';
+      video.requestFullscreen();
+      video.play();
+      video.onended = () => {
+        document.exitFullscreen();
+        addOverlayMessage(currentPiece.dataset.questionIndex);
+        addToHistory(currentPiece.dataset.questionIndex);
+      };
+    }
+    options.style.display = 'none';
+  }
+
+  function hidePiece() {
+    options.style.display = 'none';
+    alert('Resposta incorreta! A peça voltará ao estado inicial.');
+  }
+
+  optionButtons.forEach((button, index) => {
+    button.addEventListener('click', () => checkAnswer(button.textContent.charAt(0)));
+  });
+
+  function checkAnswer(option) {
+    const questionIndex = currentPiece.dataset.questionIndex;
+    if (option === questionsData[questionIndex].correctAnswer) {
+      revealPiece();
+    } else {
+      hidePiece();
+    }
+  }
+
+  function addToHistory(questionIndex) {
+    const listItem = document.createElement('li');
+    listItem.textContent = `${parseInt(questionIndex) + 1} - ${questionsData[questionIndex].question} Resposta Correta: ${questionsData[questionIndex].options[questionsData[questionIndex].correctAnswer.charCodeAt(0) - 65]}`;
+    historyList.appendChild(listItem);
+  }
+
+  function addOverlayMessage(questionIndex) {
+    const overlay = document.createElement('div');
+    overlay.className = 'video-overlay';
+    overlay.textContent = questionsData[questionIndex].message;
+    currentPiece.appendChild(overlay);
+  }
+
+  // Easter Egg Functionality
+  easterEgg.addEventListener('click', () => {
+    window.open("https://www27.receita.fazenda.gov.br/simulador-irpf/", "_blank");
+  });
+</script>
+
+</body>
+</html>
