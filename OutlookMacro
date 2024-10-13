@@ -1,0 +1,190 @@
+Sub ProcessEmails()
+    Dim objItem As Object
+    Dim objMail As MailItem
+    Dim objExcel As Object
+    Dim objWorkbook As Object
+    Dim objSheet As Object
+    Dim lastRow As Long
+    Dim senderEmail As String
+    Dim senderName As String
+    Dim emailDate As String
+    Dim subject As String
+    Dim savePath As String
+    Dim attachment As attachment
+    Dim subfolderPath As String
+    Dim action As String
+    Dim theme As String
+    Dim formattedName As String
+    Dim sensitivity As String
+    Dim userInput As String
+    
+    ' Solicitar input do usuário para a classificação
+    userInput = InputBox("Digite 1 para Folha de Pagamento ou 2 para Outros:", "Classificação de Sensibilidade")
+    
+    ' Verificar se o usuário digitou uma entrada válida
+    If userInput <> "1" And userInput <> "2" Then
+        MsgBox "Entrada inválida. A operação será cancelada.", vbExclamation
+        Exit Sub
+    End If
+    
+    ' Definir a sensibilidade com base na entrada do usuário
+    If userInput = "1" Then
+        sensitivity = "Alta"
+    Else
+        sensitivity = "Baixa"
+    End If
+    
+    ' Caminho do arquivo Excel
+    Dim excelFilePath As String
+    excelFilePath = "C:\Users\19287\OneDrive - Hospital Alemao Oswaldo Cruz\_RPA_AdmPessoal\_RPA_email.xlsx"
+    
+    ' Caminho da pasta para salvar anexos
+    savePath = "C:\Users\19287\OneDrive - Hospital Alemao Oswaldo Cruz\_RPA_AdmPessoal\"
+    
+    ' Verificar se o item selecionado é um e-mail
+    If Application.ActiveExplorer.Selection.Count = 0 Then
+        MsgBox "Selecione um e-mail para processar."
+        Exit Sub
+    End If
+    
+    ' Loop através dos e-mails selecionados
+    For Each objItem In Application.ActiveExplorer.Selection
+        If TypeOf objItem Is MailItem Then
+            Set objMail = objItem
+            
+            ' Extrair informações do e-mail
+            senderEmail = GetSmtpAddress(objMail)
+            senderName = objMail.senderName
+            emailDate = Format(objMail.SentOn, "yyyy_mm_dd")
+            subject = objMail.subject
+            
+            ' Garantir que o assunto não seja vazio ou inválido
+            If Trim(subject) = "" Then
+                subject = "Sem_Assunto"
+            End If
+            
+            ' Classificar o assunto em uma ou duas palavras
+            action = GetShortSubject(subject)
+            
+            ' Determinar o tema com base no assunto
+            theme = GetTheme(action)
+            
+            ' Formatar o nome do arquivo e subpasta
+            formattedName = CleanFileName(emailDate & "_" & senderName & "_" & Replace(action, " ", "_"))
+            subfolderPath = savePath & formattedName & "\"
+            
+            ' Verificar e criar a pasta
+            CreateFolderIfNotExists subfolderPath
+            
+            ' Iniciar o Excel e abrir a planilha
+            Set objExcel = CreateObject("Excel.Application")
+            objExcel.Visible = False
+            Set objWorkbook = objExcel.Workbooks.Open(excelFilePath)
+            Set objSheet = objWorkbook.Sheets(1)
+            
+            ' Encontrar a última linha para adicionar os dados
+            lastRow = objSheet.Cells(objSheet.Rows.Count, "A").End(-4162).Row + 1 ' -4162 é equivalente a xlUp
+            
+            ' Salvar os dados na planilha
+            objSheet.Cells(lastRow, 1).Value = subject
+            objSheet.Cells(lastRow, 2).Value = senderEmail
+            objSheet.Cells(lastRow, 3).Value = senderName
+            objSheet.Cells(lastRow, 4).Value = emailDate
+            objSheet.Cells(lastRow, 5).Value = "Atendimento" ' Preencher com a informação adequada
+            objSheet.Cells(lastRow, 6).Value = theme
+            objSheet.Cells(lastRow, 7).Value = sensitivity ' Nova coluna para sensibilidade
+            
+            ' Destacar a célula se a sensibilidade for alta
+            If userInput = "1" Then
+                objSheet.Cells(lastRow, 7).Interior.Color = RGB(173, 216, 230) ' Azul claro
+            End If
+            
+            ' Salvar e fechar a planilha
+            objWorkbook.Save
+            objWorkbook.Close
+            objExcel.Quit
+            
+            ' Salvar os anexos na subpasta com o nome formatado
+            For Each attachment In objMail.Attachments
+                attachment.SaveAsFile subfolderPath & attachment.fileName
+            Next attachment
+            
+            ' Salvar uma cópia do e-mail em formato .msg na pasta com o nome formatado
+            objMail.SaveAs subfolderPath & formattedName & ".msg", olMSG
+            
+            ' Mover o e-mail para a Lixeira
+            objMail.Move Application.Session.GetDefaultFolder(olFolderDeletedItems)
+        End If
+    Next objItem
+    
+    MsgBox "Processamento concluído."
+End Sub
+
+Sub CreateFolderIfNotExists(folderPath As String)
+    ' Função para criar a pasta, incluindo subpastas se necessário
+    Dim fso As Object
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    
+    ' Verifica se a pasta existe, se não, cria-a
+    If Not fso.FolderExists(folderPath) Then
+        On Error Resume Next
+        fso.CreateFolder folderPath
+        On Error GoTo 0
+    End If
+End Sub
+
+Function GetShortSubject(fullSubject As String) As String
+    Dim words() As String
+    Dim shortSubject As String
+    
+    ' Garantir que o assunto não seja vazio
+    If Trim(fullSubject) = "" Then
+        fullSubject = "Sem_Assunto"
+    End If
+    
+    ' Separar o assunto em palavras
+    words = Split(fullSubject, " ")
+    
+    ' Pegar a primeira e segunda palavra, se existirem
+    If UBound(words) >= 1 Then
+        shortSubject = words(0) & " " & words(1)
+    Else
+        shortSubject = words(0)
+    End If
+    
+    GetShortSubject = shortSubject
+End Function
+
+Function GetTheme(subject As String) As String
+    Select Case True
+        Case InStr(1, subject, "R&S", vbTextCompare) > 0: GetTheme = "R&S"
+        Case InStr(1, subject, "T&D", vbTextCompare) > 0: GetTheme = "T&D"
+        Case InStr(1, subject, "Folha de Pagamento", vbTextCompare) > 0: GetTheme = "Folha de Pagamento"
+        Case Else: GetTheme = "Outros"
+    End Select
+End Function
+
+Function CleanFileName(fileName As String) As String
+    ' Remove caracteres inválidos de um nome de arquivo
+    Dim invalidChars As String
+    invalidChars = "/\:*?""<>|"
+    Dim i As Integer
+    
+    For i = 1 To Len(invalidChars)
+        fileName = Replace(fileName, Mid(invalidChars, i, 1), "_")
+    Next i
+    
+    CleanFileName = fileName
+End Function
+
+Function GetSmtpAddress(objMail As MailItem) As String
+    On Error Resume Next
+    ' Tenta obter o endereço SMTP correto do remetente
+    If objMail.SenderEmailType = "EX" Then
+        GetSmtpAddress = objMail.Sender.GetExchangeUser().PrimarySmtpAddress
+    Else
+        GetSmtpAddress = objMail.SenderEmailAddress
+    End If
+    On Error GoTo 0
+End Function
+
