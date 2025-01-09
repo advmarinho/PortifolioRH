@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top:0px!important">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividades Folha Pagamento HAOC</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            padding: 20px;
+        }
+        .board {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .column {
+            background-color: #f9f9f9;
+            border: 2px dashed #007889;
+            border-radius: 8px;
+            width: 300px;
+            min-height: 200px;
+            padding: 10px;
+            text-align: center;
+        }
+        .task {
+            background-color: #e7f3ff;
+            border: 1px solid #007889;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: grab;
+        }
+        .task:active {
+            cursor: grabbing;
+        }
+        button {
+            background-color: #007889;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #003B4E;
+        }
+        .trash {
+            background-color: #ff4d4d;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        .trash:hover {
+            background-color: #d93636;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Atividades Folha Pagamento HAOC</h1>
+    <div class="board">
+        <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>A Fazer</h2>
+        </div>
+        <div class="column" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Em Andamento</h2>
+        </div>
+        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Concluído</h2>
+        </div>
+    </div>
+    <div class="trash" ondrop="deleteTask(event)" ondragover="allowDrop(event)">
+        Arraste aqui para excluir
+    </div>
+    <script>
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drag(event) {
+            event.dataTransfer.setData("text/plain", event.target.id);
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const data = event.dataTransfer.getData("text/plain");
+            const draggedElement = document.getElementById(data);
+            const targetElement = event.target;
+
+            if (targetElement.classList.contains("task")) {
+                const parent = targetElement.parentElement;
+                parent.insertBefore(draggedElement, targetElement.nextSibling);
+            } else if (targetElement.classList.contains("column")) {
+                targetElement.appendChild(draggedElement);
+            }
+            saveBoardState();
+        }
+
+        function deleteTask(event) {
+            event.preventDefault();
+            const data = event.dataTransfer.getData("text/plain");
+            const task = document.getElementById(data);
+            task.remove();
+            saveBoardState();
+        }
+
+        function saveBoardState() {
+            const boardState = {};
+            document.querySelectorAll(".column").forEach(column => {
+                const columnId = column.id;
+                const tasks = Array.from(column.querySelectorAll(".task")).map(task => ({
+                    id: task.id,
+                    content: task.innerHTML
+                }));
+                boardState[columnId] = tasks;
+            });
+            localStorage.setItem("boardState", JSON.stringify(boardState));
+        }
+
+        function loadBoardState() {
+            const boardState = JSON.parse(localStorage.getItem("boardState"));
+            if (boardState) {
+                Object.keys(boardState).forEach(columnId => {
+                    const column = document.getElementById(columnId);
+                    boardState[columnId].forEach(taskData => {
+                        const task = document.createElement("div");
+                        task.id = taskData.id;
+                        task.className = "task";
+                        task.draggable = true;
+                        task.innerHTML = taskData.content;
+                        task.contentEditable = "true";
+                        task.addEventListener("dragstart", drag);
+                        task.addEventListener("blur", saveBoardState);
+                        column.appendChild(task);
+                    });
+                });
+            }
+        }
+
+        function addTask(columnId) {
+            const column = document.getElementById(columnId);
+            const taskId = `task${Date.now()}`;
+            const task = document.createElement("div");
+            task.id = taskId;
+            task.className = "task";
+            task.draggable = true;
+            task.contentEditable = "true";
+            task.innerHTML = "Nova Tarefa";
+            task.addEventListener("dragstart", drag);
+            task.addEventListener("blur", saveBoardState);
+            column.appendChild(task);
+            saveBoardState();
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            loadBoardState();
+            document.querySelectorAll(".column").forEach(column => {
+                const addButton = document.createElement("button");
+                addButton.textContent = "Adicionar Tarefa";
+                addButton.onclick = () => addTask(column.id);
+                column.appendChild(addButton);
+            });
+        });
+    </script>
+</body>
+</html>
