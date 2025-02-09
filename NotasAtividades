@@ -1,0 +1,271 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top: 0px !important;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools - Anderson Marinho</title>
+  <link rel="stylesheet" href="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/css/lib/swiper-bundle.css">
+  <link rel="stylesheet" href="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/style.css">
+  <link rel="icon" href="https://www.hospitaloswaldocruz.org.br/wp-content/uploads/2017/09/hospital-alemao-oswaldo-cruz-favicon.png" sizes="32x32" />
+  <style>
+    body {
+      background-color: #ffffff;
+      font-family: 'Aptos Display', sans-serif;
+      font-size: 12px; /* Fonte ajustada para 12px */
+      padding: 20px;
+    }
+    .container {
+      margin-top: 20px;
+      max-width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .task-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #d3d3d3;
+      padding: 10px;
+    }
+    .column {
+      flex: 1;
+      border: 2px dashed #007889;
+      padding: 10px;
+      min-height: 100px;
+      cursor: text;
+      outline: none;
+      background-color: #f9f9f9;
+    }
+    /* Estilo padrão para as imagens na página */
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    button {
+      background-color: #007889;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #003B4E;
+    }
+    /* Estilo para o preview da imagem ampliada */
+    #imagePreview {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      border: 2px solid #007889;
+      background-color: white;
+      padding: 10px;
+      z-index: 1000;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    /* A imagem de preview ocupará o máximo possível da tela, sem ultrapassar 90% da largura e altura da viewport */
+    #imagePreview img {
+      max-width: 90vw;
+      max-height: 90vh;
+      width: auto;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="links-container" contenteditable="true" class="column" style="margin-bottom: 20px; padding: 10px;">
+    <ul>
+      <li>Exemplo de link ou tema...</li>
+    </ul>
+  </div>
+  <h1>Gente e Gestão Adm. Pessoal - HAOC</h1>
+
+  <!-- Exemplo de imagem dentro do quadrante -->
+  <div class="column" style="margin-bottom: 20px;">
+    <img src="https://via.placeholder.com/150.png" alt="Imagem de exemplo">
+  </div>
+
+  <div id="task-list">
+    <div class="task-container">
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+    </div>
+  </div>
+
+  <button id="exportButton">Exportar para Word</button>
+  <button id="saveButton">Salvar Localmente</button>
+  <input type="file" id="importFile" style="display: none;" accept="application/json" />
+  <button id="importButton">Importar</button>
+
+  <!-- Container para exibir a imagem ampliada -->
+  <div id="imagePreview">
+    <img id="previewImage" src="" alt="Preview">
+  </div>
+
+  <footer style="text-align: center; margin-top: 20px; background-color: #003B4E; padding: 10px; color: white;">
+    <p>Anderson Marinho - HAOC</p>
+  </footer>
+
+  <script>
+    // Função para adicionar nova linha de atividade mantendo os três quadrantes
+    function addNewTaskRow() {
+      const taskList = document.getElementById("task-list");
+      const newTaskContainer = document.createElement("div");
+      newTaskContainer.classList.add("task-container");
+      newTaskContainer.innerHTML = `
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      `;
+      taskList.appendChild(newTaskContainer);
+    }
+
+    // Evento para adicionar nova linha ao pressionar "Enter" na última coluna
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey && document.activeElement.classList.contains("column")) {
+        const taskContainers = document.querySelectorAll(".task-container");
+        const lastContainer = taskContainers[taskContainers.length - 1];
+        const columns = lastContainer.querySelectorAll(".column");
+        const lastColumn = columns[columns.length - 1];
+        if (document.activeElement === lastColumn) {
+          event.preventDefault();
+          addNewTaskRow();
+        } else {
+          event.preventDefault();
+        }
+      } else if (event.key === "Enter" && event.shiftKey && document.activeElement.id === "links-container") {
+        event.preventDefault();
+        const selection = window.getSelection();
+        const range = selection.getRangeAt(0);
+        const newListItem = document.createElement("li");
+        newListItem.innerHTML = "Novo link ou tema...";
+        range.insertNode(newListItem);
+        range.setStartAfter(newListItem);
+        range.setEndAfter(newListItem);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    });
+
+    // Função para salvar automaticamente a cada 8 horas
+    function autoSave() {
+      saveToJSON();
+    }
+    setInterval(autoSave, 28800000);
+
+    // Função para salvar o conteúdo em JSON
+    function saveToJSON() {
+      const tasks = [];
+      // Captura os valores das tarefas
+      document.querySelectorAll(".task-container").forEach(task => {
+        const columns = Array.from(task.querySelectorAll(".column")).map(column => column.innerHTML.trim());
+        tasks.push(columns);
+      });
+      // Captura o valor da caixa de links
+      const linksContent = document.getElementById("links-container").innerHTML.trim();
+      // Cria o objeto para salvar
+      const data = {
+        links: linksContent,
+        tasks: tasks
+      };
+      // Gera o arquivo JSON
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "acoes_haoc.json";
+      link.click();
+    }
+
+    // Evento para salvar localmente
+    document.getElementById("saveButton").addEventListener("click", saveToJSON);
+
+    // Exportar para Word
+    document.getElementById("exportButton").addEventListener("click", () => {
+      const content = document.getElementById("task-list").innerHTML;
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset='utf-8'>
+            <style>
+              img {
+                max-width: 100%;
+                height: auto;
+                display: block;
+              }
+            </style>
+          </head>
+          <body>
+            ${content}
+          </body>
+        </html>`;
+      const blob = new Blob([htmlContent], { type: 'application/msword' });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = "acoes_haoc.doc";
+      link.click();
+    });
+
+    // Importar arquivo JSON
+    document.getElementById("importButton").addEventListener("click", () => {
+      document.getElementById("importFile").click();
+    });
+
+    document.getElementById("importFile").addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const importedData = JSON.parse(reader.result);
+            if (importedData.links) {
+              document.getElementById("links-container").innerHTML = importedData.links;
+            }
+            if (importedData.tasks && Array.isArray(importedData.tasks)) {
+              const taskList = document.getElementById("task-list");
+              taskList.innerHTML = "";
+              importedData.tasks.forEach(columns => {
+                const taskContainer = document.createElement("div");
+                taskContainer.classList.add("task-container");
+                taskContainer.innerHTML = columns.map(content => `<div contenteditable="true" class="column" placeholder="Comentário sobre atividade...">${content}</div>`).join("");
+                taskList.appendChild(taskContainer);
+              });
+            }
+          } catch (e) {
+            alert("Erro ao importar o arquivo. Certifique-se de que o formato está correto.");
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // Função para exibir a imagem em tamanho maior quando o mouse passar por cima usando delegação de eventos
+    function setupImagePreviewDelegation() {
+      const previewContainer = document.getElementById("imagePreview");
+      const previewImage = document.getElementById("previewImage");
+
+      document.body.addEventListener("mouseover", (event) => {
+        const target = event.target;
+        if (target.tagName.toLowerCase() === "img") {
+          previewImage.src = target.src;
+          previewContainer.style.display = "block";
+        }
+      });
+
+      document.body.addEventListener("mouseout", (event) => {
+        const target = event.target;
+        if (target.tagName.toLowerCase() === "img") {
+          previewContainer.style.display = "none";
+        }
+      });
+    }
+
+    window.addEventListener("load", setupImagePreviewDelegation);
+  </script>
+</body>
+</html>
