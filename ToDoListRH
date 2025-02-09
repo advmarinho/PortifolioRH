@@ -1,0 +1,297 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top:0px!important">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atividades Folha Pagamento HAOC</title>
+    <style>
+        body {
+            background-color: #ffffff;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            padding: 20px;
+        }
+        h1, .export-buttons {
+            text-align: center;
+        }
+        .board {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .column {
+            background-color: #f9f9f9;
+            border: 2px dashed #007889;
+            border-radius: 8px;
+            width: 300px;
+            min-height: 200px;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+        }
+        .task {
+            background-color: #e7f3ff;
+            border: 1px solid #007889;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: grab;
+        }
+        .task:active {
+            cursor: grabbing;
+        }
+        button {
+            background-color: #007889;
+            color: white;
+            padding: 5px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #003B4E;
+        }
+        .input-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 10px;
+            gap: 5px;
+        }
+        .input-container input {
+            flex: 1;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .export-buttons {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Atividades Folha Pagamento HAOC</h1>
+
+    <!-- Botões para exportar dados -->
+    <div class="export-buttons">
+        <button onclick="exportToJSON()">Salvar em JSON</button>
+        <button onclick="copyToExcel()">Copiar para Excel</button>
+    </div>
+
+    <div class="board">
+        <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>A Fazer</h2>
+            <div class="input-container">
+                <input type="text" id="input-todo" placeholder="Descreva a tarefa...">
+                <button onclick="addTask('todo', 'input-todo')">Adicionar</button>
+            </div>
+        </div>
+        <div class="column" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Em Andamento</h2>
+            <div class="input-container">
+                <input type="text" id="input-in-progress" placeholder="Descreva a tarefa...">
+                <button onclick="addTask('in-progress', 'input-in-progress')">Adicionar</button>
+            </div>
+        </div>
+        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h2>Concluído</h2>
+            <div class="input-container">
+                <input type="text" id="input-done" placeholder="Descreva a tarefa...">
+                <button onclick="addTask('done', 'input-done')">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Permite soltar o objeto
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        // Inicia o arrasto, passando o ID do elemento
+        function drag(event) {
+            event.dataTransfer.setData("text/plain", event.target.id);
+        }
+
+        // Ao soltar nas colunas, adiciona o elemento no local
+        function drop(event) {
+            event.preventDefault();
+            const data = event.dataTransfer.getData("text/plain");
+            const draggedElement = document.getElementById(data);
+            const targetElement = event.target;
+
+            if (targetElement.classList.contains("task")) {
+                const parent = targetElement.parentElement;
+                parent.insertBefore(draggedElement, targetElement.nextSibling);
+            } else if (targetElement.classList.contains("column")) {
+                targetElement.appendChild(draggedElement);
+            }
+            saveBoardState();
+        }
+
+        // Salva estado do board no localStorage
+        function saveBoardState() {
+            const boardState = {};
+            document.querySelectorAll(".column").forEach(column => {
+                const columnId = column.id;
+                const tasks = Array.from(column.querySelectorAll(".task")).map(task => ({
+                    id: task.id,
+                    content: task.innerHTML
+                }));
+                boardState[columnId] = tasks;
+            });
+            localStorage.setItem("boardState", JSON.stringify(boardState));
+        }
+
+        // Carrega estado do board do localStorage
+        function loadBoardState() {
+            const boardState = JSON.parse(localStorage.getItem("boardState"));
+            if (boardState) {
+                Object.keys(boardState).forEach(columnId => {
+                    const column = document.getElementById(columnId);
+                    boardState[columnId].forEach(taskData => {
+                        const task = document.createElement("div");
+                        task.id = taskData.id;
+                        task.className = "task";
+                        task.draggable = true;
+                        task.innerHTML = taskData.content;
+                        task.contentEditable = "true";
+                        task.addEventListener("dragstart", drag);
+                        task.addEventListener("blur", saveBoardState);
+                        task.addEventListener("contextmenu", (e) => {
+                            e.preventDefault();
+                            removeTask(task);
+                        });
+                        column.appendChild(task);
+                    });
+                });
+            }
+        }
+
+        // Cria nova tarefa na coluna desejada
+        function addTask(columnId, inputId) {
+            const column = document.getElementById(columnId);
+            const inputField = document.getElementById(inputId);
+            const content = inputField.value.trim();
+
+            if (!content) {
+                // Se estiver vazio, não adiciona.
+                return;
+            }
+
+            // Gera ID único
+            const taskId = `task-${Date.now()}`;
+            // Cria a div da tarefa
+            const task = document.createElement("div");
+            task.id = taskId;
+            task.className = "task";
+            task.draggable = true;
+            task.contentEditable = "true";
+            task.innerHTML = content;
+            task.addEventListener("dragstart", drag);
+            task.addEventListener("blur", saveBoardState);
+            // Excluir via menu de contexto (botão direito)
+            task.addEventListener("contextmenu", (e) => {
+                e.preventDefault();
+                removeTask(task);
+            });
+
+            // Adiciona a tarefa na coluna
+            column.appendChild(task);
+
+            // Limpa o campo de texto
+            inputField.value = "";
+
+            // Salva estado
+            saveBoardState();
+        }
+
+        // Exclui tarefa (chamado ao clicar com botão direito)
+        function removeTask(taskElement) {
+            const confirmDelete = confirm("Deseja excluir esta tarefa?");
+            if (confirmDelete) {
+                taskElement.remove();
+                saveBoardState();
+            }
+        }
+
+        // Exportar para JSON (gera um arquivo .json para download)
+        function exportToJSON() {
+            const boardState = JSON.parse(localStorage.getItem("boardState")) || {};
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(boardState, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "boardState.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // Copiar dados para Excel (gera CSV e coloca na área de transferência)
+        function copyToExcel() {
+            // Carrega do localStorage
+            const boardState = JSON.parse(localStorage.getItem("boardState")) || {};
+
+            // Monta um array de linhas CSV: "Coluna","Tarefa"
+            let csvRows = [];
+            csvRows.push("Coluna,Tarefa"); // cabeçalho
+            Object.keys(boardState).forEach(columnId => {
+                // Descobre se queremos nome amigável em vez do ID
+                // Podemos mapear ID -> nome da coluna:
+                let columnName = "";
+                switch(columnId) {
+                    case "todo": columnName = "A Fazer"; break;
+                    case "in-progress": columnName = "Em Andamento"; break;
+                    case "done": columnName = "Concluído"; break;
+                    default: columnName = columnId;
+                }
+                boardState[columnId].forEach(task => {
+                    // Remover quebras de linha do texto, para não quebrar CSV
+                    let contentClean = task.content.replace(/\r?\n|\r/g, " ");
+                    // Escapar aspas e vírgulas
+                    contentClean = contentClean.replace(/"/g, '""');
+                    // Monta a linha CSV
+                    csvRows.push(`"${columnName}","${contentClean}"`);
+                });
+            });
+
+            // Converte o array de linhas em uma única string
+            let csvString = csvRows.join("\n");
+
+            // Copia para área de transferência
+            if (navigator.clipboard && window.isSecureContext) {
+                // Se o ambiente permitir, usa Clipboard API moderna
+                navigator.clipboard.writeText(csvString).then(() => {
+                    alert("Tarefas copiadas para a área de transferência (formato CSV).");
+                }, err => {
+                    console.error("Falha ao copiar", err);
+                });
+            } else {
+                // Fallback para browsers antigos
+                let textArea = document.createElement("textarea");
+                textArea.value = csvString;
+                // Para que textarea não seja visível
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert("Tarefas copiadas para a área de transferência (formato CSV).");
+                } catch (err) {
+                    console.error("Falha ao copiar", err);
+                }
+                document.body.removeChild(textArea);
+            }
+        }
+
+        // Carrega as tarefas salvas ao iniciar
+        document.addEventListener("DOMContentLoaded", () => {
+            loadBoardState();
+        });
+    </script>
+</body>
+</html>
