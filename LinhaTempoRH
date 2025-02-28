@@ -61,7 +61,7 @@
       margin: 5px;
       border-radius: 3px;
     }
-    /* Indicador de atividade editada – removida a propriedade de cor para manter a fonte preta */
+    /* Indicador de atividade editada – mantém a fonte preta */
     .edited {
       border-left: 3px solid #008000;
       padding-left: 5px;
@@ -71,20 +71,8 @@
 <body>
   <h2>Linha do Tempo da Folha de Pagamento</h2>
   
-  <!-- Área de configurações para cores e primeiro dia da semana -->
+  <!-- Área de configurações para cores -->
   <div id="settings">
-    <label>
-      Primeiro dia da semana do mês:
-      <select id="firstDaySelect">
-        <option value="0">Domingo</option>
-        <option value="1" selected>Segunda</option>
-        <option value="2">Terça</option>
-        <option value="3">Quarta</option>
-        <option value="4">Quinta</option>
-        <option value="5">Sexta</option>
-        <option value="6">Sábado</option>
-      </select>
-    </label>
     <label>
       Cor Sábado:
       <input type="color" id="saturdayColor" value="#87CEEB">
@@ -114,6 +102,12 @@
     const activities = document.getElementById("activities");
     const activityInput = document.getElementById("activityInput");
     let activityData = JSON.parse(localStorage.getItem("activityData")) || {};
+
+    // Função para obter o primeiro dia do mês (0 = Domingo, 1 = Segunda, etc.)
+    function getFirstDayOfMonth() {
+      let today = new Date();
+      return new Date(today.getFullYear(), today.getMonth(), 1).getDay();
+    }
 
     function allowDrop(ev) {
       ev.preventDefault();
@@ -186,8 +180,9 @@
       }
     }
 
+    // Atualiza as cores dos dias (para sábado e domingo) usando o primeiro dia do mês do computador
     function updateTimelineColors() {
-      let firstDay = parseInt(document.getElementById("firstDaySelect").value);
+      let firstDay = getFirstDayOfMonth();
       let saturdayColor = document.getElementById("saturdayColor").value;
       let sundayColor = document.getElementById("sundayColor").value;
       document.querySelectorAll(".day").forEach(dayDiv => {
@@ -207,11 +202,13 @@
       });
     }
 
+    // Cria a timeline usando o primeiro dia do mês obtido automaticamente
     function createTimeline() {
-      let firstDay = parseInt(document.getElementById("firstDaySelect").value);
+      let firstDay = getFirstDayOfMonth();
       let saturdayColor = document.getElementById("saturdayColor").value;
       let sundayColor = document.getElementById("sundayColor").value;
 
+      // Botão "Todos" – sem cor especial
       let todosDiv = document.createElement("div");
       todosDiv.classList.add("day");
       todosDiv.setAttribute("data-day", "Todos");
@@ -332,7 +329,7 @@
     function showActivities(day) {
       activities.innerHTML = "";
       if(day === "Todos") {
-        selectedDay.innerText = "Atividades de Todos os Dias";
+        selectedDay.innerText = "Atividades";
         Object.keys(activityData).forEach(dayKey => {
           activityData[dayKey].forEach((activity, index) => {
             let activityText = (typeof activity === "object") ? activity.text : activity;
@@ -453,7 +450,7 @@
 
     function addActivity() {
       let day = selectedDay.innerText.replace("Atividades do dia ", "");
-      if(day === "de Todos os Dias") {
+      if(day === "de Todos") {
         alert("Selecione um dia específico para adicionar atividades.");
         return;
       }
