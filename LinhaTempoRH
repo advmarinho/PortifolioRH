@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linha do Tempo da Folha de Pagamento</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      text-align: center;
+    }
+    #settings {
+      margin-bottom: 20px;
+    }
+    .timeline {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding: 10px;
+      gap: 10px;
+    }
+    .day {
+      width: 50px;
+      height: 50px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 2px solid #3498db;
+      cursor: pointer;
+      position: relative;
+      flex-direction: column;
+    }
+    .day:hover {
+      background: #3498db;
+      color: black;
+    }
+    .day.selected {
+      background: #3498db;
+      color: black;
+    }
+    .activity-icon {
+      font-size: 12px;
+      color: #3498db;
+      margin-top: 5px;
+      display: none;
+      cursor: grab;
+    }
+    .activity-list {
+      margin-top: 20px;
+      background: white;
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+    }
+    .draggable {
+      cursor: grab;
+      padding: 5px;
+      margin: 5px;
+      border-radius: 3px;
+    }
+    /* Indicador de atividade editada – removida a propriedade de cor para manter a fonte preta */
+    .edited {
+      border-left: 3px solid #008000;
+      padding-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Linha do Tempo da Folha de Pagamento</h2>
+  
+  <!-- Área de configurações para cores e primeiro dia da semana -->
+  <div id="settings">
+    <label>
+      Primeiro dia da semana do mês:
+      <select id="firstDaySelect">
+        <option value="0">Domingo</option>
+        <option value="1" selected>Segunda</option>
+        <option value="2">Terça</option>
+        <option value="3">Quarta</option>
+        <option value="4">Quinta</option>
+        <option value="5">Sexta</option>
+        <option value="6">Sábado</option>
+      </select>
+    </label>
+    <label>
+      Cor Sábado:
+      <input type="color" id="saturdayColor" value="#87CEEB">
+    </label>
+    <label>
+      Cor Domingo:
+      <input type="color" id="sundayColor" value="#FFB6C1">
+    </label>
+    <button onclick="updateTimelineColors()">Atualizar Cores</button>
+  </div>
+
+  <div class="timeline" id="timeline"></div>
+  <div class="activity-list" id="activityList">
+    <h3 id="selectedDay"></h3>
+    <ul id="activities"></ul>
+    <input type="text" id="activityInput" placeholder="Adicionar atividade">
+    <button onclick="addActivity()">Adicionar</button>
+    <button onclick="exportData()">Exportar JSON</button>
+    <button onclick="clearAllActivities()">Limpar Atividades</button>
+    <input type="file" id="importFile" onchange="importData(event)">
+  </div>
+
+  <script>
+    const timeline = document.getElementById("timeline");
+    const activityList = document.getElementById("activityList");
+    const selectedDay = document.getElementById("selectedDay");
+    const activities = document.getElementById("activities");
+    const activityInput = document.getElementById("activityInput");
+    let activityData = JSON.parse(localStorage.getItem("activityData")) || {};
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+    }
+
+    function dragActivity(ev) {
+      ev.dataTransfer.setData("activity", ev.target.textContent);
+    }
+
+    function dragPin(ev) {
+      let sourceDay = ev.target.parentElement.getAttribute("data-day");
+      ev.dataTransfer.setData("sourceDay", sourceDay);
+    }
+
+    function dropDay(ev) {
+      ev.preventDefault();
+      let dayDiv = ev.target;
+      while (!dayDiv.classList.contains("day") && dayDiv.parentElement) {
+        dayDiv = dayDiv.parentElement;
+      }
+      let targetDay = dayDiv.getAttribute("data-day");
+      let activity = ev.dataTransfer.getData("activity");
+      let sourceDay = ev.dataTransfer.getData("sourceDay");
+
+      if (activity) {
+        if (!activityData[targetDay]) {
+          activityData[targetDay] = [];
+        }
+        activityData[targetDay].push({ text: activity, edited: false, checked: false });
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+        updateDayIcon(targetDay);
+      } else if (sourceDay) {
+        if (activityData[sourceDay] && activityData[sourceDay].length > 0) {
+          let movedActivity = activityData[sourceDay].shift();
+          if (!activityData[targetDay]) {
+            activityData[targetDay] = [];
+          }
+          activityData[targetDay].push(movedActivity);
+          localStorage.setItem("activityData", JSON.stringify(activityData));
+          updateDayIcon(sourceDay);
+          updateDayIcon(targetDay);
+        }
+      }
+    }
+
+    function updateDayIcon(day) {
+      if(day === "Todos") return;
+      let dayDiv = document.querySelector(`.day[data-day='${day}']`);
+      if(!dayDiv) return;
+      let activityIcon = dayDiv.querySelector(".activity-icon");
+      let isSelected = dayDiv.classList.contains("selected");
+      if ((activityData[day] && activityData[day].length > 0) || isSelected) {
+        activityIcon.style.display = "block";
+        activityIcon.innerText = isSelected ? "📍" : "📌";
+        activityIcon.draggable = true;
+        activityIcon.ondragstart = dragPin;
+      } else {
+        activityIcon.style.display = "none";
+      }
+    }
+
+    function markSelected(selectedElem) {
+      document.querySelectorAll(".day").forEach(day => {
+        day.classList.remove("selected");
+        updateDayIcon(day.getAttribute("data-day"));
+      });
+      if(selectedElem.getAttribute("data-day") !== "Todos"){
+        selectedElem.classList.add("selected");
+        updateDayIcon(selectedElem.getAttribute("data-day"));
+      }
+    }
+
+    function updateTimelineColors() {
+      let firstDay = parseInt(document.getElementById("firstDaySelect").value);
+      let saturdayColor = document.getElementById("saturdayColor").value;
+      let sundayColor = document.getElementById("sundayColor").value;
+      document.querySelectorAll(".day").forEach(dayDiv => {
+        let dayAttr = dayDiv.getAttribute("data-day");
+        if(dayAttr && dayAttr !== "Todos") {
+          if(dayDiv.classList.contains("selected")) return;
+          let dayNum = parseInt(dayAttr);
+          let dayOfWeek = (firstDay + dayNum - 1) % 7;
+          if(dayOfWeek === 6) {
+            dayDiv.style.backgroundColor = saturdayColor;
+          } else if(dayOfWeek === 0) {
+            dayDiv.style.backgroundColor = sundayColor;
+          } else {
+            dayDiv.style.backgroundColor = "#ffffff";
+          }
+        }
+      });
+    }
+
+    function createTimeline() {
+      let firstDay = parseInt(document.getElementById("firstDaySelect").value);
+      let saturdayColor = document.getElementById("saturdayColor").value;
+      let sundayColor = document.getElementById("sundayColor").value;
+
+      let todosDiv = document.createElement("div");
+      todosDiv.classList.add("day");
+      todosDiv.setAttribute("data-day", "Todos");
+      todosDiv.innerText = "Todos";
+      todosDiv.addEventListener("click", function(){
+        document.querySelectorAll(".day").forEach(day => day.classList.remove("selected"));
+        showActivities("Todos");
+      });
+      timeline.appendChild(todosDiv);
+
+      for (let i = 1; i <= 31; i++) {
+        let dayDiv = document.createElement("div");
+        dayDiv.classList.add("day");
+        dayDiv.setAttribute("data-day", i);
+        dayDiv.innerHTML = i;
+        dayDiv.addEventListener("click", function(){
+          markSelected(this);
+          showActivities(this.getAttribute("data-day"));
+        });
+        dayDiv.ondragover = allowDrop;
+        dayDiv.ondrop = dropDay;
+
+        let dayOfWeek = (firstDay + i - 1) % 7;
+        if(dayOfWeek === 6) {
+          dayDiv.style.backgroundColor = saturdayColor;
+        } else if(dayOfWeek === 0) {
+          dayDiv.style.backgroundColor = sundayColor;
+        } else {
+          dayDiv.style.backgroundColor = "#ffffff";
+        }
+
+        let activityIcon = document.createElement("div");
+        activityIcon.classList.add("activity-icon");
+        activityIcon.innerText = "📌";
+        dayDiv.appendChild(activityIcon);
+
+        timeline.appendChild(dayDiv);
+
+        if (activityData[i] && activityData[i].length > 0) {
+          activityIcon.style.display = "block";
+          activityIcon.draggable = true;
+          activityIcon.ondragstart = dragPin;
+        }
+      }
+    }
+
+    function attachActivityEvents(li, dayKey, index, activityText, mode) {
+      li.addEventListener("click", function(e) {
+        if (li.clickTimer) {
+          clearTimeout(li.clickTimer);
+          li.clickTimer = null;
+          return;
+        }
+        li.clickTimer = setTimeout(() => {
+          if (!li.innerHTML.includes("IA")) {
+            li.innerHTML += ' <span style="color: orange;">IA</span>';
+          }
+          li.clickTimer = null;
+        }, 200);
+      });
+
+      li.addEventListener("dblclick", function(e) {
+        if (li.clickTimer) {
+          clearTimeout(li.clickTimer);
+          li.clickTimer = null;
+        }
+        let defaultText = activityText.replace(" IA", "");
+        let newText = prompt("Editar atividade:", defaultText);
+        if(newText === null) {
+          if(confirm("Deseja remover o marcador de edição?")) {
+            if(mode === "Todos"){
+              showActivities("Todos");
+              updateDayIcon(dayKey);
+            } else {
+              showActivities(dayKey);
+              updateDayIcon(dayKey);
+            }
+          }
+          return;
+        }
+        if(newText.trim() === ""){
+          if(confirm("Texto vazio. Deseja remover o marcador de edição?")) {
+            if(mode === "Todos"){
+              showActivities("Todos");
+              updateDayIcon(dayKey);
+            } else {
+              showActivities(dayKey);
+              updateDayIcon(dayKey);
+            }
+          }
+          return;
+        }
+        if(mode === "Todos"){
+          if(typeof activityData[dayKey][index] === "object"){
+            activityData[dayKey][index].text = newText.trim();
+            activityData[dayKey][index].edited = true;
+          } else {
+            activityData[dayKey][index] = { text: newText.trim(), edited: true, checked: false };
+          }
+          localStorage.setItem("activityData", JSON.stringify(activityData));
+          showActivities("Todos");
+          updateDayIcon(dayKey);
+        } else {
+          let currentDay = dayKey;
+          if(typeof activityData[currentDay][index] === "object"){
+            activityData[currentDay][index].text = newText.trim();
+            activityData[currentDay][index].edited = true;
+          } else {
+            activityData[currentDay][index] = { text: newText.trim(), edited: true, checked: false };
+          }
+          localStorage.setItem("activityData", JSON.stringify(activityData));
+          showActivities(currentDay);
+          updateDayIcon(currentDay);
+        }
+      });
+    }
+
+    function showActivities(day) {
+      activities.innerHTML = "";
+      if(day === "Todos") {
+        selectedDay.innerText = "Atividades de Todos os Dias";
+        Object.keys(activityData).forEach(dayKey => {
+          activityData[dayKey].forEach((activity, index) => {
+            let activityText = (typeof activity === "object") ? activity.text : activity;
+            let isEdited = (typeof activity === "object") && activity.edited;
+            let isChecked = (typeof activity === "object") && activity.checked;
+            let li = document.createElement("li");
+            li.innerHTML = `Dia ${dayKey}: ${activityText}`;
+            if(isEdited) {
+              li.classList.add("edited");
+            } else {
+              li.style.color = "black";
+              li.style.borderLeft = "3px solid black";
+              li.style.paddingLeft = "5px";
+            }
+            let checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = isChecked;
+            if(checkbox.checked) {
+              li.style.backgroundColor = "green";
+            } else {
+              li.style.backgroundColor = "";
+            }
+            checkbox.addEventListener("change", function(){
+              if(checkbox.checked) {
+                li.style.backgroundColor = "green";
+              } else {
+                li.style.backgroundColor = "";
+              }
+              if(typeof activityData[dayKey][index] === "object"){
+                activityData[dayKey][index].checked = checkbox.checked;
+              }
+              localStorage.setItem("activityData", JSON.stringify(activityData));
+            });
+            li.prepend(checkbox);
+            li.classList.add("draggable");
+            li.draggable = true;
+            li.setAttribute("data-day", dayKey);
+            li.setAttribute("data-index", index);
+            li.ondragstart = dragActivity;
+            li.addEventListener("contextmenu", function(e) {
+              e.preventDefault();
+              if (confirm("Deseja excluir essa atividade?")) {
+                let dayAttr = li.getAttribute("data-day");
+                let indexAttr = li.getAttribute("data-index");
+                if (activityData[dayAttr]) {
+                  activityData[dayAttr].splice(indexAttr, 1);
+                  localStorage.setItem("activityData", JSON.stringify(activityData));
+                  showActivities("Todos");
+                  updateDayIcon(dayAttr);
+                }
+              }
+            });
+            attachActivityEvents(li, dayKey, index, activityText, "Todos");
+            activities.appendChild(li);
+          });
+        });
+      } else {
+        selectedDay.innerText = `Atividades do dia ${day}`;
+        if (activityData[day]) {
+          activityData[day].forEach((activity, index) => {
+            let activityText = (typeof activity === "object") ? activity.text : activity;
+            let isEdited = (typeof activity === "object") && activity.edited;
+            let isChecked = (typeof activity === "object") && activity.checked;
+            let li = document.createElement("li");
+            li.innerHTML = activityText;
+            if(isEdited) {
+              li.classList.add("edited");
+            } else {
+              li.style.color = "black";
+              li.style.borderLeft = "3px solid black";
+              li.style.paddingLeft = "5px";
+            }
+            let checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = isChecked;
+            if(checkbox.checked) {
+              li.style.backgroundColor = "green";
+            } else {
+              li.style.backgroundColor = "";
+            }
+            checkbox.addEventListener("change", function(){
+              if(checkbox.checked) {
+                li.style.backgroundColor = "green";
+              } else {
+                li.style.backgroundColor = "";
+              }
+              if(typeof activityData[day][index] === "object"){
+                activityData[day][index].checked = checkbox.checked;
+              }
+              localStorage.setItem("activityData", JSON.stringify(activityData));
+            });
+            li.prepend(checkbox);
+            li.classList.add("draggable");
+            li.draggable = true;
+            li.setAttribute("data-day", day);
+            li.setAttribute("data-index", index);
+            li.ondragstart = dragActivity;
+            li.addEventListener("contextmenu", function(e) {
+              e.preventDefault();
+              if (confirm("Deseja excluir essa atividade?")) {
+                let dayAttr = li.getAttribute("data-day");
+                let indexAttr = li.getAttribute("data-index");
+                if (activityData[dayAttr]) {
+                  activityData[dayAttr].splice(indexAttr, 1);
+                  localStorage.setItem("activityData", JSON.stringify(activityData));
+                  showActivities(day);
+                  updateDayIcon(dayAttr);
+                }
+              }
+            });
+            attachActivityEvents(li, day, index, activityText, "day");
+            activities.appendChild(li);
+          });
+        }
+      }
+      activityList.style.display = "block";
+    }
+
+    function addActivity() {
+      let day = selectedDay.innerText.replace("Atividades do dia ", "");
+      if(day === "de Todos os Dias") {
+        alert("Selecione um dia específico para adicionar atividades.");
+        return;
+      }
+      let activity = activityInput.value.trim();
+      if (activity) {
+        if (!activityData[day]) {
+          activityData[day] = [];
+        }
+        activityData[day].push({ text: activity, edited: false, checked: false });
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+        activityInput.value = "";
+        showActivities(day);
+        updateDayIcon(day);
+      }
+    }
+
+    function exportData() {
+      let dataStr = JSON.stringify(activityData);
+      let blob = new Blob([dataStr], { type: "application/json" });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "activityData.json";
+      a.click();
+    }
+
+    function importData(event) {
+      let file = event.target.files[0];
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        activityData = JSON.parse(e.target.result);
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+        for (let i = 1; i <= 31; i++) {
+          updateDayIcon(i);
+        }
+        alert("Dados importados com sucesso!");
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllActivities() {
+      if (confirm("Deseja realmente limpar todas as atividades?")) {
+        activityData = {};
+        localStorage.removeItem("activityData");
+        for (let i = 1; i <= 31; i++) {
+          updateDayIcon(i);
+        }
+        showActivities("Todos");
+      }
+    }
+
+    createTimeline();
+  </script>
+</body>
+</html>
