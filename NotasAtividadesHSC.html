@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR" style="margin-top: 0px !important;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tools - Anderson Marinho</title>
+  <link rel="stylesheet" href="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/css/lib/swiper-bundle.css">
+  <link rel="stylesheet" href="https://www.hospitaloswaldocruz.org.br/wp-content/themes/institucional_244/style.css">
+  <link rel="icon" href="https://www.hospitaloswaldocruz.org.br/wp-content/uploads/2017/09/hospital-alemao-oswaldo-cruz-favicon.png" sizes="32x32" />
+  <style>
+    /* Cores Hospital São Camilo (Kadence) */
+    :root {
+      --primary-red: #c81010;
+      --primary-red-dark: #b51b1b;
+      --light-gray: #F7FAFC;
+      --white: #ffffff;
+      --text-dark: #2D3748;
+    }
+    body {
+      background-color: var(--white);
+      font-family: 'Aptos Display', sans-serif;
+      font-size: 12px;
+      padding: 20px;
+      color: var(--text-dark);
+    }
+    .container {
+      margin-top: 20px;
+      max-width: 90%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .task-container {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border: 1px solid #d3d3d3;
+      padding: 10px;
+      background-color: var(--light-gray);
+    }
+    .column {
+      flex: 1;
+      border: 2px dashed var(--primary-red);
+      padding: 10px;
+      min-height: 100px;
+      cursor: text;
+      outline: none;
+      background-color: var(--light-gray);
+      color: var(--text-dark);
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+    button {
+      background-color: var(--primary-red);
+      color: var(--white);
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: var(--primary-red-dark);
+    }
+    #imagePreview {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      border: 2px solid var(--primary-red);
+      background-color: var(--white);
+      padding: 10px;
+      z-index: 1000;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    #imagePreview img {
+      max-width: 90vw;
+      max-height: 90vh;
+      display: block;
+    }
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      background-color: var(--primary-red);
+      padding: 10px;
+      color: var(--white);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div id="links-container" contenteditable="true" class="column" style="margin-bottom: 20px;">
+    <ul>
+      <li>Exemplo de link ou tema...</li>
+    </ul>
+  </div>
+
+  <!-- Campo livre para texto ou imagem -->
+  <div id="free-field" contenteditable="true" class="column" style="margin-bottom:20px;">
+    Cole aqui texto ou cole/importe uma imagem...
+  </div>
+  <input type="file" id="imageUpload" accept="image/*" style="margin-bottom:20px;" />
+
+  <h1 style="color: var(--primary-red);">Gente e Gestão Adm. Pessoal - São Camilo</h1>
+
+  <!-- DIV DE IMAGEM REMOVIDA -->
+
+  <div id="task-list">
+    <div class="task-container">
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+    </div>
+  </div>
+
+  <button id="saveButton">Salvar Localmente</button>
+  <button id="exportButton">Exportar para Word</button>
+
+  <div id="imagePreview">
+    <img id="previewImage" src="" alt="Preview">
+  </div>
+
+  <footer>
+    <p>Anderson Marinho - São Camilo</p>
+  </footer>
+
+  <script>
+    function addNewTaskRow() {
+      const taskList = document.getElementById("task-list");
+      const newTaskContainer = document.createElement("div");
+      newTaskContainer.classList.add("task-container");
+      newTaskContainer.innerHTML = `
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+        <div contenteditable="true" class="column" placeholder="Comentário sobre atividade..."></div>
+      `;
+      taskList.appendChild(newTaskContainer);
+    }
+
+    function saveToLocalStorage() {
+      const tasks = Array.from(document.querySelectorAll(".task-container")).map(task =>
+        Array.from(task.querySelectorAll(".column")).map(c => c.innerHTML.trim())
+      );
+      const links = document.getElementById("links-container").innerHTML.trim();
+      const freeContent = document.getElementById("free-field").innerHTML.trim();
+      localStorage.setItem('acoes_haoc', JSON.stringify({ links, freeContent, tasks }));
+    }
+
+    function loadFromLocalStorage() {
+      const stored = localStorage.getItem('acoes_haoc');
+      if (stored) {
+        const { links, freeContent, tasks } = JSON.parse(stored);
+        document.getElementById("links-container").innerHTML = links || '';
+        document.getElementById("free-field").innerHTML = freeContent || '';
+        const taskList = document.getElementById("task-list");
+        taskList.innerHTML = '';
+        (tasks || []).forEach(cols => {
+          const row = document.createElement("div"); row.className = 'task-container';
+          row.innerHTML = cols.map(html => `<div contenteditable="true" class="column">${html}</div>`).join('');
+          taskList.appendChild(row);
+        });
+      }
+    }
+
+    function bindAutoSave() {
+      document.querySelectorAll('.column').forEach(el => el.addEventListener('input', saveToLocalStorage));
+      document.getElementById('links-container').addEventListener('input', saveToLocalStorage);
+      document.getElementById('free-field').addEventListener('input', saveToLocalStorage);
+    }
+
+    function setupImagePreview() {
+      const prev = document.getElementById("imagePreview");
+      const imgEl = document.getElementById("previewImage");
+      document.body.addEventListener("mouseover", ev => {
+        if (ev.target.tagName === 'IMG') { imgEl.src = ev.target.src; prev.style.display = 'block'; }
+      });
+      document.body.addEventListener("mouseout", ev => { if (ev.target.tagName === 'IMG') prev.style.display = 'none'; });
+    }
+
+    document.getElementById('imageUpload').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = document.createElement('img');
+          img.src = reader.result;
+          document.getElementById('free-field').appendChild(img);
+          saveToLocalStorage();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey && e.target.classList.contains("column")) {
+        e.preventDefault();
+        const cols = document.querySelectorAll(".task-container:last-child .column");
+        if (e.target === cols[cols.length - 1]) addNewTaskRow();
+      }
+    });
+
+    window.addEventListener('load', () => {
+      loadFromLocalStorage();
+      setupImagePreview();
+      bindAutoSave();
+      document.getElementById('saveButton').addEventListener('click', saveToLocalStorage);
+      document.getElementById('exportButton').addEventListener('click', () => {
+        const content = document.getElementById("task-list").innerHTML;
+        const blob = new Blob([`<!DOCTYPE html><html><head><meta charset='utf-8'></head><body>${content}</body></html>`], { type: 'application/msword' });
+        const link = document.createElement('a'); link.href = URL.createObjectURL(blob);
+        link.download = 'acoes_haoc.doc'; link.click();
+      });
+      window.addEventListener('beforeunload', saveToLocalStorage);
+    });
+  </script>
+</body>
+</html>
