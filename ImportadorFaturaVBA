@@ -1,0 +1,122 @@
+Option Explicit
+
+Sub ConsolidarArquivoFaturamento_Anexar()
+    Dim wbM        As Workbook
+    Dim wsM        As Worksheet
+    Dim wbT        As Workbook
+    Dim wsT        As Worksheet
+    Dim caminho    As String
+    Dim lastRowM   As Long
+    Dim pasteRow   As Long
+    Dim lastRowT   As Long
+    Dim lastColT   As Long
+    Dim nRows      As Long
+    Dim rngV       As Range, cel As Range
+    
+    ' --- 1) Recupera (ou cria) a planilha "Consolidado" ---
+    Set wbM = ThisWorkbook
+    On Error Resume Next: Set wsM = wbM.Worksheets("Consolidado"): On Error GoTo 0
+    If wsM Is Nothing Then
+        Set wsM = wbM.Worksheets.Add(Before:=wbM.Sheets(1))
+        wsM.Name = "Consolidado"
+        wsM.Columns("A:G").Insert Shift:=xlToRight
+    End If
+    
+    ' --- 1b) Define cabeçalhos e novas colunas ---
+    With wsM
+        .Range("A3:G3").Value = Array( _
+            "MATRÍCULA", "NOME FUNCIONÁRIO", "SITUAÇÃO", _
+            "UNIDADE", "CENTRO DE CUSTO", "TIPO LANÇAMENTO", "SINAL" _
+        )
+        .Range("AA3").Value = "PREMIO COM IOF"
+        .Range("AB3").Value = "VALOR DO LANCAMENTO ABS"
+    End With
+
+    ' --- 2) Seleciona o arquivo de faturamento ---
+    With Application.FileDialog(msoFileDialogFilePicker)
+        .Title = "Selecione o arquivo de faturamento"
+        .AllowMultiSelect = False
+        .Filters.Clear
+        .Filters.Add "Excel e CSV", "*.xls; *.xlsx; *.xlsb; *.csv"
+        If .Show <> -1 Then Exit Sub
+        caminho = .SelectedItems(1)
+    End With
+    
+    Application.ScreenUpdating = False
+
+    ' --- 3) Abre origem e define área de dados ---
+    Set wbT = Workbooks.Open(Filename:=caminho, ReadOnly:=True)
+    Set wsT = wbT.Worksheets(1)
+    lastRowT = wsT.Cells(wsT.Rows.Count, "A").End(xlUp).Row
+    lastColT = wsT.Cells(3, wsT.Columns.Count).End(xlToLeft).Column
+    nRows = lastRowT - 2      ' dados começam na linha 3
+
+    ' --- 4) Próxima linha livre em A ---
+    lastRowM = wsM.Cells(wsM.Rows.Count, "A").End(xlUp).Row
+    If lastRowM < 3 Then lastRowM = 2
+    pasteRow = lastRowM
+
+    ' --- 5) Copia e cola valores ---
+    wsT.Range(wsT.Cells(3, 1), wsT.Cells(lastRowT, lastColT)).Copy
+    wsM.Cells(pasteRow, "H").PasteSpecial xlPasteValues
+
+    ' --- 6) Preenche Coluna A com J e converte para valor ---
+    With wsM.Range(wsM.Cells(pasteRow, "A"), wsM.Cells(pasteRow + nRows - 1, "A"))
+        .FormulaR1C1 = "=RC[25]"
+        .Value = .Value
+        .NumberFormat = "General"
+    End With
+    
+    ' --- 7) Converte Coluna V em número ---
+    Set rngV = wsM.Range( _
+        wsM.Cells(pasteRow, "V"), _
+        wsM.Cells(pasteRow + nRows - 1, "V") _
+    )
+    rngV.NumberFormat = "General"
+    For Each cel In rngV
+        If Not IsError(cel.Value) And IsNumeric(cel.Value) Then
+            cel.Value = CDbl(cel.Value)
+        End If
+    Next cel
+    
+    wbT.Close SaveChanges:=False
+    Application.CutCopyMode = False
+    Application.ScreenUpdating = True
+
+    ' --- 8) (ÚLTIMO PASSO) Preenche só linhas 4 a 8 em F, G, AA e AB ---
+    With wsM
+        ' Coluna F (6): linhas 4 a 8
+        .Range( _
+          .Cells(4, 6), _
+          .Cells(8, 6) _
+        ).FormulaR1C1 = _
+          "=IF(RC[14]="""",""10"",CONCATENATE(RC[14],"" "",RC[18]))"
+        
+        ' Coluna G (7): linhas 4 a 8
+        .Range( _
+          .Cells(4, 7), _
+          .Cells(8, 7) _
+        ).FormulaR1C1 = _
+          "=IFERROR(VLOOKUP(RC[-1],INDIRECT(""Resumo!R:S""),2,FALSE),""-"")"
+        
+        ' Coluna AA (27): linhas 4 a 8
+        .Range( _
+          .Cells(4, 27), _
+          .Cells(8, 27) _
+        ).FormulaR1C1 = _
+          "=IF(CONCATENATE(MID(RC[-15],1,3),RC[-3])=""COB10"",RC[-5],ROUND(RC[1]*1.0238,4))"
+        
+        ' Coluna AB (28): linhas 4 a 8
+        .Range( _
+          .Cells(4, 28), _
+          .Cells(8, 28) _
+        ).FormulaR1C1 = _
+          "=IF(RC[-21]=""PREMIO(-)"",-RC[-6],IF(RC[-21]=""RETROATIVO(-)"",-RC[-6],RC[-6]))"
+    End With
+
+
+    MsgBox "Importação anexada com sucesso:" & vbCrLf & _
+           VBA.FileSystem.Dir(caminho), vbInformation
+End Sub
+
+
