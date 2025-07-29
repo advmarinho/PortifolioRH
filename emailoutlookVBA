@@ -1,0 +1,161 @@
+    ' SALVAR EMAIL Caminho do Excel
+
+Sub SalvarEmailsBeneficios()
+    Dim objItem As Object, objMail As MailItem
+    Dim xlApp As Object, wb As Object, ws As Object
+    Dim excelFilePath As String, lastRow As Long
+    Dim senderEmail As String, senderName As String, senderDisplayName As String
+    Dim emailDate As String, subject As String
+    Dim userInput As String, matricula As String, motivo As String
+    Dim suggestedMatricula As String
+
+    ' Caminho do Excel
+    excelFilePath = "C:\_RPA\Benef\Benef.xlsx"
+
+    If Application.ActiveExplorer.Selection.Count = 0 Then
+        MsgBox "Selecione ao menos um e-mail.", vbExclamation
+        Exit Sub
+    End If
+
+    ' Abrir Excel
+    On Error Resume Next
+    Set xlApp = CreateObject("Excel.Application")
+    On Error GoTo 0
+    If xlApp Is Nothing Then
+        MsgBox "Erro ao abrir o Excel. Verifique se ele não está travado.", vbCritical
+        Exit Sub
+    End If
+
+    xlApp.Visible = False
+    Set wb = xlApp.Workbooks.Open(excelFilePath)
+    Set ws = wb.Sheets(1)
+
+    ' Loop nos e-mails
+    For Each objItem In Application.ActiveExplorer.Selection
+        If TypeOf objItem Is MailItem Then
+            Set objMail = objItem
+
+            senderName = objMail.senderName
+            senderEmail = GetSmtpAddress(objMail)
+            senderDisplayName = ""
+
+            If InStr(senderEmail, "/O=EXCHANGELABS") > 0 Then
+                senderDisplayName = senderName
+            End If
+
+            emailDate = Format(objMail.SentOn, "yyyy_mm_dd")
+            subject = IIf(Trim(objMail.subject) = "", "Sem_Assunto", objMail.subject)
+
+            ' Matrícula sugerida do assunto ou corpo
+            suggestedMatricula = FindMatricula(subject)
+            If suggestedMatricula = "" Then
+                suggestedMatricula = FindMatricula(objMail.Body)
+            End If
+
+            ' Input personalizado com valor sugerido
+            userInput = InputBox("Digite no formato: matrícula | motivo", "Classificação do E-mail", suggestedMatricula & " | ")
+
+            If InStr(userInput, "|") = 0 Then
+                MsgBox "Entrada inválida. Use o formato: matrícula | motivo", vbExclamation
+                GoTo Proximo
+            End If
+
+            ' Separação segura do pipe
+            Dim splitParts() As String
+            splitParts = Split(userInput, "|")
+            If UBound(splitParts) < 1 Then
+                MsgBox "Formato inválido. Separe com pipe: matrícula | motivo", vbCritical
+                GoTo Proximo
+            End If
+
+            matricula = Trim(splitParts(0))
+            motivo = Trim(splitParts(1))
+
+            ' Se não digitou matrícula, usa a sugerida
+            If matricula = "" Then
+                matricula = suggestedMatricula
+            End If
+
+            If motivo = "" Then
+                MsgBox "O motivo é obrigatório!", vbExclamation
+                GoTo Proximo
+            End If
+
+            ' Gravar na planilha
+            lastRow = ws.Cells(ws.Rows.Count, "A").End(-4162).Row + 1
+            With ws
+                .Cells(lastRow, 1).Value = subject                    ' A
+                .Cells(lastRow, 2).Value = senderEmail               ' B
+                .Cells(lastRow, 3).Value = senderName                ' C
+                .Cells(lastRow, 4).Value = emailDate                 ' D
+                .Cells(lastRow, 5).Value = "Atendimento"             ' E
+                .Cells(lastRow, 6).Value = matricula                 ' F
+                .Cells(lastRow, 7).Value = motivo                    ' G
+                .Cells(lastRow, 8).Value = GetTheme(GetShortSubject(subject)) ' H
+                .Cells(lastRow, 9).Value = senderDisplayName         ' I
+                If InStr(motivo, "Folha de Pagamento") > 0 Then
+                    .Cells(lastRow, 7).Interior.Color = RGB(173, 216, 230)
+                End If
+            End With
+
+            objMail.Move Application.Session.GetDefaultFolder(olFolderDeletedItems)
+        End If
+Proximo:
+    Next objItem
+
+    wb.Save
+    wb.Close False
+    xlApp.Quit
+
+    Set xlApp = Nothing: Set wb = Nothing: Set ws = Nothing
+
+    MsgBox "E-mails processados e movidos para a lixeira.", vbInformation
+End Sub
+
+
+
+Function FindMatricula(text As String) As String
+    Dim regex As Object
+    Set regex = CreateObject("VBScript.RegExp")
+    
+    regex.Pattern = "\b\d{4,5}\b"
+    regex.Global = True
+    regex.IgnoreCase = True
+
+    If regex.Test(text) Then
+        FindMatricula = regex.Execute(text)(0)
+    Else
+        FindMatricula = ""
+    End If
+End Function
+
+Function GetShortSubject(subject As String) As String
+    subject = Replace(subject, "RE:", "", , , vbTextCompare)
+    subject = Replace(subject, "FW:", "", , , vbTextCompare)
+    GetShortSubject = Trim(Left(subject, 40))
+End Function
+
+Function GetTheme(shortSubject As String) As String
+    If InStr(1, shortSubject, "benefício", vbTextCompare) > 0 Then
+        GetTheme = "Benefícios"
+    ElseIf InStr(1, shortSubject, "rescisão", vbTextCompare) > 0 Then
+        GetTheme = "Rescisão"
+    Else
+        GetTheme = "Beneficios"
+    End If
+End Function
+
+Function GetSmtpAddress(mail As MailItem) As String
+    Dim PR_SMTP_ADDRESS As String
+    PR_SMTP_ADDRESS = "http://schemas.microsoft.com/mapi/proptag/0x39FE001E"
+    
+    On Error Resume Next
+    If mail.SenderEmailType = "EX" Then
+        ' Exchange interno – tenta resolver o endereço SMTP real
+        GetSmtpAddress = mail.Sender.PropertyAccessor.GetProperty(PR_SMTP_ADDRESS)
+    Else
+        ' SMTP comum (externo)
+        GetSmtpAddress = mail.SenderEmailAddress
+    End If
+    On Error GoTo 0
+End Function
