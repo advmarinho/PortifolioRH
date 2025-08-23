@@ -1,0 +1,131 @@
+import pandas as pd
+import yfinance as y
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from statsmodels.tsa.arima.model import ARIMA
+
+# =========================
+# 1) Baixar todo histórico
+# =========================
+petr = y.Ticker('PETR4.SA').history(period='max')[['Close']].rename(columns={'Close':'PETR'})
+vale = y.Ticker('VALE3.SA').history(period='max')[['Close']].rename(columns={'Close':'VALE'})
+df = pd.merge(petr, vale, left_index=True, right_index=True).dropna().reset_index()
+
+# =========================
+# 2) Função de projeção ARIMA
+# =========================
+def projecao_arima(dados, col_name, meses=12, conserv=0.05):
+    # converte meses em dias úteis (~21 pregões/mês)
+    steps = int(meses * 21)
+    
+    serie = dados[col_name]
+    model = ARIMA(serie, order=(1,1,1))  # ARIMA simples
+    model_fit = model.fit()
+    
+    forecast = model_fit.get_forecast(steps=steps)
+    mean_forecast = forecast.predicted_mean
+    conf_int = forecast.conf_int(alpha=0.2)  # intervalo de 80%
+    
+    future_dates = pd.date_range(dados['Date'].iloc[-1], periods=steps, freq='B')
+
+    # faixa conservadora ±5%
+    y_future = mean_forecast.values
+    upper_cons = y_future * (1 + conserv)
+    lower_cons = y_future * (1 - conserv)
+
+    return future_dates, mean_forecast, conf_int, upper_cons, lower_cons
+
+# =========================
+# 3) Projeções (defina meses aqui)
+# =========================
+meses_proj = 12  # escolha: 6, 12, 24 ...
+dates_petr, base_petr, ci_petr, up_cons_petr, low_cons_petr = projecao_arima(df, 'PETR', meses=meses_proj)
+dates_vale, base_vale, ci_vale, up_cons_vale, low_cons_vale = projecao_arima(df, 'VALE', meses=meses_proj)
+
+# =========================
+# 4) Subplots interativos
+# =========================
+fig = make_subplots(rows=1, cols=2, subplot_titles=("Petrobras (PETR4)", "Vale (VALE3)"))
+
+# --- PETR4 ---
+fig.add_trace(go.Scatter(x=df['Date'], y=df['PETR'],
+                         mode='lines', name='Histórico PETR4',
+                         line=dict(color='#64F5D2')), row=1, col=1)
+
+fig.add_trace(go.Scatter(x=dates_petr, y=base_petr,
+                         mode='lines', name='Projeção PETR4 (ARIMA)',
+                         line=dict(color='gray', dash='dash')), row=1, col=1)
+
+# IC 80%
+fig.add_trace(go.Scatter(x=dates_petr, y=ci_petr.iloc[:,1], mode='lines',
+                         line=dict(width=0), showlegend=False), row=1, col=1)
+fig.add_trace(go.Scatter(x=dates_petr, y=ci_petr.iloc[:,0], mode='lines',
+                         line=dict(width=0), fill='tonexty',
+                         fillcolor='rgba(128,128,128,0.3)', name='Faixa (IC 80%)'), row=1, col=1)
+
+# Faixa conservadora ±5%
+fig.add_trace(go.Scatter(x=dates_petr, y=up_cons_petr, mode='lines',
+                         line=dict(width=0), showlegend=False), row=1, col=1)
+fig.add_trace(go.Scatter(x=dates_petr, y=low_cons_petr, mode='lines',
+                         line=dict(width=0), fill='tonexty',
+                         fillcolor='rgba(0,0,0,0.1)', name='Faixa Conservadora (±5%)'), row=1, col=1)
+
+# --- VALE3 ---
+fig.add_trace(go.Scatter(x=df['Date'], y=df['VALE'],
+                         mode='lines', name='Histórico VALE3',
+                         line=dict(color='#64F5D2')), row=1, col=2)
+
+fig.add_trace(go.Scatter(x=dates_vale, y=base_vale,
+                         mode='lines', name='Projeção VALE3 (ARIMA)',
+                         line=dict(color='gray', dash='dash')), row=1, col=2)
+
+# IC 80%
+fig.add_trace(go.Scatter(x=dates_vale, y=ci_vale.iloc[:,1], mode='lines',
+                         line=dict(width=0), showlegend=False), row=1, col=2)
+fig.add_trace(go.Scatter(x=dates_vale, y=ci_vale.iloc[:,0], mode='lines',
+                         line=dict(width=0), fill='tonexty',
+                         fillcolor='rgba(128,128,128,0.3)', name='Faixa (IC 80%)'), row=1, col=2)
+
+# Faixa conservadora ±5%
+fig.add_trace(go.Scatter(x=dates_vale, y=up_cons_vale, mode='lines',
+                         line=dict(width=0), showlegend=False), row=1, col=2)
+fig.add_trace(go.Scatter(x=dates_vale, y=low_cons_vale, mode='lines',
+                         line=dict(width=0), fill='tonexty',
+                         fillcolor='rgba(0,0,0,0.1)', name='Faixa Conservadora (±5%)'), row=1, col=2)
+
+# =========================
+# 5) Layout final com zoom/slider
+# =========================
+fig.update_layout(
+    title=f"PETR4 x VALE3 — Histórico completo e Projeção em R$ (Próximos {meses_proj} meses)",
+    hovermode="x unified",
+    template="plotly_white",
+    legend=dict(bgcolor="rgba(255,255,255,0.8)", font=dict(color="black")),
+    xaxis=dict(
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(count=1, label="1a", step="year", stepmode="backward"),
+                dict(step="all")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="date"
+    ),
+    xaxis2=dict(  # para o segundo subplot (Vale)
+        rangeselector=dict(
+            buttons=list([
+                dict(count=1, label="1m", step="month", stepmode="backward"),
+                dict(count=6, label="6m", step="month", stepmode="backward"),
+                dict(count=1, label="1a", step="year", stepmode="backward"),
+                dict(step="all")
+            ])
+        ),
+        rangeslider=dict(visible=True),
+        type="date"
+    )
+)
+
+fig.show()
