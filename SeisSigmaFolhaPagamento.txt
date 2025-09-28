@@ -1,0 +1,458 @@
+# -*- coding: utf-8 -*-
+import io, re
+import numpy as np
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+from streamlit_plotly_events import plotly_events
+
+# =========================
+# Configuração
+# =========================
+st.set_page_config(page_title="Sonova – Padrões de Folha", layout="wide", initial_sidebar_state="expanded")
+st.title("Sonova – Padrões de Folha")
+
+PALETA = ["#004C97", "#66A3D2", "#5DADE2", "#2E86C1", "#95A5A6"]
+COR_MEDIA = "black"
+COR_1SIG = "#7f8c8d"
+COR_2SIG = "#F39C12"
+COR_3SIG = "#C0392B"
+
+# =========================
+# Compat: rerun para qualquer versão de Streamlit
+# =========================
+def _rerun():
+    try:
+        st.rerun()  # versões novas
+    except Exception:
+        try:
+            st.experimental_rerun()  # versões antigas
+        except Exception:
+            pass
+
+# =========================
+# Funções utilitárias
+# =========================
+def detect_encoding_and_read(file) -> pd.DataFrame:
+    for enc in ["ISO-8859-1", "utf-8"]:
+        try:
+            return pd.read_csv(file, sep=";", encoding=enc, engine="python")
+        except Exception:
+            file.seek(0)
+    return pd.read_csv(file, sep=";", engine="python")
+
+def normalize_number_series(s: pd.Series) -> pd.Series:
+    s = s.astype(str).str.replace(".", "", regex=False).str.replace(",", ".", regex=False)
+    return pd.to_numeric(s, errors="coerce")
+
+def limites_controle(series: pd.Series):
+    mu = series.mean()
+    s = series.std(ddof=1) if len(series.dropna()) > 1 else 0.0
+    return dict(media=mu, s=s,
+                m_m3=mu-3*s, m_m2=mu-2*s, m_m1=mu-1*s,
+                m_p1=mu+1*s, m_p2=mu+2*s, m_p3=mu+3*s)
+
+def excel_download(df: pd.DataFrame) -> bytes:
+    buf = io.BytesIO()
+    try:
+        import xlsxwriter  # noqa
+        engine = "xlsxwriter"
+    except ImportError:
+        engine = "openpyxl"
+    with pd.ExcelWriter(buf, engine=engine) as writer:
+        df.to_excel(writer, sheet_name="Dados", index=False)
+    return buf.getvalue()
+
+def filtrar_liquidos(df: pd.DataFrame, desc_col: str):
+    # cobre LIQ, LIQUIDO, LÍQUIDO, etc.
+    return df[~df[desc_col].astype(str).str.upper().str.contains(r"LIQUID|LIQUIDO|LIQ")]
+
+def mapear_class_exib(classe: str) -> str:
+    m = {"Pgto": "1-Pgto", "Desc": "2-Desc", "Outros": "3-Outros"}
+    return m.get(str(classe), str(classe))
+
+def sort_key(s):
+    s = str(s)
+    if s.startswith("1-"): return (1, s)
+    if s.startswith("2-"): return (2, s)
+    if s.startswith("3-"): return (3, s)
+    return (9, s)
+
+# =========================
+# Entrada
+# =========================
+st.sidebar.header("Entrada")
+uploaded = st.sidebar.file_uploader("Carregar CSV", type=["csv"])
+if not uploaded:
+    st.stop()
+
+df = detect_encoding_and_read(uploaded).copy()
+
+# --------------------------------------
+# RESET GLOBAL (executa antes de criar widgets)
+# --------------------------------------
+if st.session_state.get("reset_filters", False):
+    for k in ["proc_sel", "classes_temp", "classes_sel", "meses_sel_key", "bar_click", "sigma_click"]:
+        if k in st.session_state:
+            st.session_state.pop(k)
+    st.session_state["verbas_clicadas"] = []
+    st.session_state["last_bar_index"] = None
+    st.session_state["clicked_index"] = None
+    st.session_state["reset_filters"] = False
+
+# Escolha das colunas principais (exceto Class e Processo)
+cand_nome = [c for c in df.columns if re.search(r"(?i)\b(nome|colaborador)\b", str(c))] or df.columns.tolist()
+cand_matr = ["<nenhuma>"] + df.columns.tolist()
+cand_desc = [c for c in df.columns if re.search(r"(?i)desc|descri", str(c))] or df.columns.tolist()
+cand_adm  = [c for c in df.columns if re.search(r"(?i)admiss", str(c))]
+cand_resc = [c for c in df.columns if re.search(r"(?i)rescis|demiss", str(c))]
+cand_proc = [c for c in df.columns if re.search(r"(?i)processo", str(c))]
+
+nome_col = st.sidebar.selectbox("Coluna Nome", options=cand_nome, key="col_nome")
+matr_col = st.sidebar.selectbox("Coluna Matrícula (opcional)", options=cand_matr, key="col_matr")
+matr_col = None if matr_col == "<nenhuma>" else matr_col
+desc_col = st.sidebar.selectbox("Coluna Descrição", options=cand_desc, key="col_desc")
+adm_col  = st.sidebar.selectbox("Coluna Data Admissão (opcional)", options=["<nenhuma>"] + (cand_adm or []), key="col_adm")
+resc_col = st.sidebar.selectbox("Coluna Data Rescisão (opcional)", options=["<nenhuma>"] + (cand_resc or []), key="col_resc")
+proc_col = st.sidebar.selectbox("Coluna Processo", options=["<nenhuma>"] + (cand_proc or []), key="col_proc")
+
+adm_col  = None if adm_col  == "<nenhuma>" else adm_col
+resc_col = None if resc_col == "<nenhuma>" else resc_col
+proc_col = None if proc_col == "<nenhuma>" else proc_col
+
+# usa SEMPRE a coluna de Class do CSV (preferência: 'Clas.'; fallback: 'Clas')
+if "Clas." in df.columns:
+    class_col = "Clas."
+elif "Clas" in df.columns:
+    class_col = "Clas"
+else:
+    st.error("Coluna de classificação não encontrada. Esperado 'Clas.' (ou 'Clas').")
+    st.stop()
+
+# Colunas de valor (meses)
+valor_cands = [c for c in df.columns if ("Valor" in c) or re.search(r"\b\d{4}\b", str(c))]
+meses_sel = st.sidebar.multiselect(
+    "Colunas de Valor (meses)",
+    options=valor_cands,
+    default=valor_cands,
+    key="meses_sel_key"
+)
+if not meses_sel:
+    st.error("Selecione ao menos uma coluna de valor (mês).")
+    st.stop()
+
+# normaliza números
+for c in meses_sel:
+    df[c] = normalize_number_series(df[c])
+
+# Renomeio seguro
+if nome_col and nome_col != "Nome":
+    df.rename(columns={nome_col: "Nome"}, inplace=True)
+if matr_col and matr_col != "Matrícula":
+    df.rename(columns={matr_col: "Matrícula"}, inplace=True)
+if adm_col and adm_col != "Data Admissão":
+    df.rename(columns={adm_col: "Data Admissão"}, inplace=True)
+if resc_col and resc_col != "Data Rescisão":
+    df.rename(columns={resc_col: "Data Rescisão"}, inplace=True)
+if proc_col and proc_col != "Processo":
+    df.rename(columns={proc_col: "Processo"}, inplace=True)
+
+# valida Nome
+if "Nome" not in df.columns:
+    st.error("A coluna 'Nome' não foi encontrada após a seleção. Verifique o campo 'Coluna Nome'.")
+    st.stop()
+
+# cria Colaborador
+if "Matrícula" in df.columns:
+    m = df["Matrícula"].astype(str).fillna("").replace("nan", "")
+    n = df["Nome"].astype(str).fillna("")
+    df["Colaborador"] = np.where(m.str.len() > 0, m + " - " + n, n)
+else:
+    df["Colaborador"] = df["Nome"].astype(str).fillna("")
+
+# =========================
+# Filtro por Processo
+# =========================
+if "Processo" in df.columns:
+    st.sidebar.header("Filtro por Processo")
+    processos_disp = sorted(df["Processo"].dropna().astype(str).unique().tolist()
+                            ) if not df["Processo"].dropna().empty else []
+    default_proc = [p for p in processos_disp if re.search(r"(?i)mensal", p)] or processos_disp
+    proc_sel = st.sidebar.multiselect(
+        "Selecione Processo(s)",
+        options=processos_disp,
+        default=default_proc,
+        key="proc_sel"
+    )
+    if proc_sel:
+        df = df[df["Processo"].astype(str).isin(proc_sel)]
+
+# Se ficar vazio após Processo, pare com aviso
+if df.empty:
+    st.warning("Sem dados após aplicar o filtro de Processo.")
+    st.stop()
+
+# =========================
+# Filtro por Class — reconciliado
+# =========================
+st.sidebar.header("Filtro por Class")
+classes_opcoes = sorted(df[class_col].dropna().astype(str).unique().tolist())
+
+if "classes_sel" not in st.session_state:
+    st.session_state.classes_sel = classes_opcoes[:]  # todas
+
+classes_default_validas = [c for c in st.session_state.classes_sel if c in classes_opcoes]
+if not classes_default_validas:
+    classes_default_validas = classes_opcoes[:]
+
+classes_temp = st.sidebar.multiselect(
+    f"Selecione valores de {class_col}",
+    options=classes_opcoes,
+    default=classes_default_validas,
+    key="classes_temp"
+)
+if st.sidebar.button("Aplicar filtro de Class"):
+    st.session_state.classes_sel = [c for c in classes_temp if c in classes_opcoes]
+
+# --------------------------------------
+# Botão: Limpar TODOS os filtros (flag + rerun)
+# --------------------------------------
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Limpar TODOS os filtros"):
+    st.session_state["reset_filters"] = True
+    _rerun()
+
+# Aplica filtro de Class
+classes_atuais = st.session_state.classes_sel if st.session_state.classes_sel else classes_opcoes
+df_filt = df[df[class_col].astype(str).isin(classes_atuais)]
+df_filt["Clas_exib"] = df_filt[class_col].astype(str).map(mapear_class_exib)
+
+if df_filt.empty:
+    st.warning("Sem dados após filtros de Processo e Class.")
+    st.stop()
+
+# =========================
+# Visão Geral (log + rótulos) — CLICÁVEL
+# =========================
+st.subheader("Visão Geral das Verbas (meses selecionados)")
+agg = df_filt[[desc_col] + meses_sel].copy()
+agg["Total_Selected"] = agg[meses_sel].sum(axis=1)
+all_verbas = (agg.groupby(desc_col, as_index=False)["Total_Selected"]
+                .sum().sort_values("Total_Selected", ascending=False))
+
+usar_log = st.checkbox("Usar escala logarítmica na Visão Geral", value=True)
+values_plot = all_verbas["Total_Selected"].copy()
+if usar_log:
+    values_plot = values_plot.abs().clip(lower=1e-6)
+
+fig_bar = px.bar(
+    all_verbas.assign(_plot_val=values_plot),
+    x="_plot_val", y=desc_col, orientation="h",
+    title=f"Todas as verbas{' (escala log)' if usar_log else ''}",
+    color_discrete_sequence=PALETA, template="plotly_white",
+    labels={"_plot_val": "Total"},
+    text="Total_Selected"
+)
+if usar_log:
+    fig_bar.update_xaxes(type="log")
+fig_bar.update_traces(texttemplate="%{text:,.2f}", textposition="outside")
+fig_bar.update_layout(height=800, margin=dict(l=10, r=10, t=50, b=10))
+
+if "verbas_clicadas" not in st.session_state:
+    st.session_state.verbas_clicadas = []
+if "last_bar_index" not in st.session_state:
+    st.session_state.last_bar_index = None
+
+bar_events = plotly_events(
+    fig_bar,
+    click_event=True,
+    select_event=False,
+    hover_event=False,
+    override_height=800,
+    key="bar_click"
+)
+
+if bar_events:
+    idx = bar_events[0].get("pointIndex", None)
+    if idx is not None and idx != st.session_state.last_bar_index:
+        st.session_state.last_bar_index = idx
+        try:
+            verba_clicada = all_verbas.iloc[idx][desc_col]
+            if verba_clicada not in st.session_state.verbas_clicadas:
+                st.session_state.verbas_clicadas.append(verba_clicada)
+        except Exception:
+            pass
+
+c_bt, _ = st.columns([1, 5])
+with c_bt:
+    if st.button("Limpar filtro de Verba (gráfico)"):
+        st.session_state.verbas_clicadas = []
+        st.session_state.last_bar_index = None
+        _rerun()
+
+if st.session_state.verbas_clicadas:
+    st.info("Filtro de verba aplicado: " + ", ".join(st.session_state.verbas_clicadas))
+
+# =========================
+# HC por mês + lançamentos + total bruto
+# =========================
+st.subheader("HC por mês, lançamentos e total bruto (dataset filtrado)")
+hc_list, lanc_list, soma_list = [], [], []
+for m in meses_sel:
+    soma_por_colab = df_filt.groupby("Colaborador")[m].sum(min_count=1)
+    hc_list.append(int((soma_por_colab.fillna(0) != 0).sum()))
+    lanc_list.append(int((df_filt[m].fillna(0) != 0).sum()))
+    soma_list.append(float(df_filt[m].sum(skipna=True)))
+
+df_hc = pd.DataFrame({
+    "Mês": meses_sel,
+    "HC (colaboradores com movimento)": hc_list,
+    "Lançamentos (linhas != 0)": lanc_list,
+    "Total Bruto do Mês": soma_list,
+})
+
+fig_hc = go.Figure()
+fig_hc.add_trace(go.Bar(
+    name="HC", x=df_hc["Mês"], y=df_hc["HC (colaboradores com movimento)"],
+    text=df_hc["HC (colaboradores com movimento)"], textposition="outside",
+    marker_color=PALETA[0]
+))
+fig_hc.add_trace(go.Bar(
+    name="Lançamentos", x=df_hc["Mês"], y=df_hc["Lançamentos (linhas != 0)"],
+    marker_color=PALETA[2]
+))
+fig_hc.add_trace(go.Scatter(
+    name="Total Bruto", x=df_hc["Mês"], y=df_hc["Total Bruto do Mês"],
+    mode="lines+markers", line=dict(color=PALETA[1], width=3), yaxis="y2"
+))
+fig_hc.update_layout(
+    barmode="group", template="plotly_white", height=480,
+    margin=dict(l=10, r=10, t=50, b=80),
+    xaxis=dict(tickangle=90),
+    yaxis=dict(title="HC / Lançamentos"),
+    yaxis2=dict(title="Total Bruto", overlaying="y", side="right")
+)
+st.plotly_chart(fig_hc, use_container_width=True)
+st.dataframe(df_hc, use_container_width=True)
+
+# =========================
+# Composição por Class (sem líquidos)
+# =========================
+st.subheader(f"Composição por {class_col} no último mês: {meses_sel[-1]}")
+comp_df = filtrar_liquidos(df_filt, desc_col).copy()
+comp_df["Clas_exib"] = comp_df[class_col].astype(str).map(mapear_class_exib)
+comp = (comp_df.groupby("Clas_exib", as_index=False)[meses_sel[-1]].sum())
+comp["ord"] = comp["Clas_exib"].map(sort_key)
+comp = comp.sort_values("ord").drop(columns="ord")
+
+if comp.empty:
+    st.info("Sem valores após filtros.")
+else:
+    fig_pie = px.pie(comp, names="Clas_exib", values=meses_sel[-1], hole=0.35,
+                     title="Composição (sem Líquidos)", color_discrete_sequence=PALETA, template="plotly_white")
+    fig_pie.update_layout(height=420, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+# =========================
+# Heatmap geral (ordenado pelo total decrescente)
+# =========================
+st.subheader("Heatmap Geral")
+mat = df_filt.groupby("Colaborador")[meses_sel].sum().fillna(0.0)
+if mat.empty:
+    st.info("Sem dados para o heatmap com os filtros atuais.")
+else:
+    ordem = mat.sum(axis=1).sort_values(ascending=False).index
+    mat = mat.loc[ordem]
+    fig_heat = px.imshow(mat, labels=dict(x="Mês", y="Colaborador", color="Valor"),
+                         color_continuous_scale="Blues", template="plotly_white", aspect="auto")
+    fig_heat.update_layout(height=520, margin=dict(l=10, r=10, t=50, b=10))
+    st.plotly_chart(fig_heat, use_container_width=True)
+
+# =========================
+# Comparativo com Seis Sigma — CLICÁVEL (anti-tremor)
+# =========================
+st.subheader("Comparativo entre Meses com Seis Sigma")
+if "clicked_index" not in st.session_state:
+    st.session_state.clicked_index = None
+
+if len(meses_sel) < 2:
+    st.warning("Selecione pelo menos 2 colunas de valor para gerar o Seis Sigma.")
+    base_comp = pd.DataFrame(columns=["Colaborador", "Delta"])
+else:
+    mes_ini, mes_fim = meses_sel[0], meses_sel[-1]
+    base_comp = df_filt.groupby("Colaborador")[[mes_ini, mes_fim]].sum().reset_index()
+    base_comp["Delta"] = base_comp[mes_fim] - base_comp[mes_ini]
+    sigma = limites_controle(base_comp["Delta"])
+
+    fig_sigma = go.Figure()
+    fig_sigma.add_trace(go.Scatter(
+        x=base_comp["Colaborador"], y=base_comp["Delta"], mode="markers",
+        marker=dict(size=8, color=PALETA[0]), name="Delta"
+    ))
+    for yval, dash, color, name in [
+        (sigma["media"], "solid", COR_MEDIA, "Média"),
+        (sigma["m_p1"], "dot", COR_1SIG, "+1σ"), (sigma["m_m1"], "dot", COR_1SIG, "-1σ"),
+        (sigma["m_p2"], "dash", COR_2SIG, "+2σ"), (sigma["m_m2"], "dash", COR_2SIG, "-2σ"),
+        (sigma["m_p3"], "dashdot", COR_3SIG, "+3σ"), (sigma["m_m3"], "dashdot", COR_3SIG, "-3σ"),
+    ]:
+        fig_sigma.add_hline(y=yval, line_dash=dash, line_color=color, annotation_text=name)
+
+    fig_sigma.update_layout(xaxis=dict(tickangle=90), height=520, margin=dict(l=10, r=10, t=50, b=150))
+
+    sigma_events = plotly_events(
+        fig_sigma,
+        click_event=True,
+        select_event=False,
+        hover_event=False,
+        override_height=520,
+        key="sigma_click"
+    )
+    if sigma_events:
+        idx = sigma_events[0].get("pointIndex", None)
+        if idx is not None and idx != st.session_state.clicked_index:
+            st.session_state.clicked_index = idx
+
+# =========================
+# Detalhe final (aplica filtros: verba clicada + colaborador do Seis Sigma)
+# =========================
+st.subheader("Detalhe por Verba e Class")
+
+cols_base = ["Colaborador", "Clas_exib", desc_col] + meses_sel
+if "Processo" in df_filt.columns:
+    cols_base.insert(1, "Processo")
+if "Data Admissão" in df_filt.columns:
+    cols_base.insert(2 if "Processo" in cols_base else 1, "Data Admissão")
+if "Data Rescisão" in df_filt.columns:
+    pos = 3 if "Processo" in cols_base and "Data Admissão" in cols_base else (2 if "Processo" in cols_base else (2 if "Data Admissão" in cols_base else 1))
+    cols_base.insert(pos, "Data Rescisão")
+
+det = df_filt.copy()
+det["Clas_exib"] = det[class_col].astype(str).map(mapear_class_exib)
+
+if st.session_state.get("verbas_clicadas"):
+    det = det[det[desc_col].isin(st.session_state.verbas_clicadas)]
+
+if ("clicked_index" in st.session_state) and (st.session_state.clicked_index is not None) and (not base_comp.empty):
+    try:
+        colaborador_clicado = base_comp.iloc[st.session_state.clicked_index]["Colaborador"]
+        det = det[det["Colaborador"] == colaborador_clicado]
+        st.write(f"Exibindo apenas **{colaborador_clicado}**")
+    except Exception:
+        pass
+
+cols_exist = [c for c in cols_base if c in det.columns]
+det = det[cols_exist]
+
+MAX_SHOW = 2000
+to_show = det if len(det) <= MAX_SHOW else det.head(MAX_SHOW)
+if len(det) > MAX_SHOW:
+    st.info(f"Registros: {len(det):,}. Mostrando {MAX_SHOW} linhas para visualização. O download inclui tudo.")
+st.dataframe(to_show, use_container_width=True, height=420)
+
+st.download_button(
+    "Baixar Excel detalhado (filtros aplicados)",
+    data=excel_download(det),
+    file_name="detalhe_folha.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
