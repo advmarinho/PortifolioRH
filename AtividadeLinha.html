@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linha do Tempo da Folha de Pagamento</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; text-align: center; }
+    #settings { margin-bottom: 20px; }
+    .timeline { display: flex; flex-wrap: wrap; justify-content: center; padding: 10px; gap: 10px; }
+    .day { width: 50px; height: 50px; background: #ffffff; display: flex; align-items: center; justify-content: center;
+      border-radius: 50%; border: 2px solid #3498db; cursor: pointer; position: relative; flex-direction: column; }
+    .day:hover { background: #3498db; color: black; }
+    .day.selected { background: #3498db; color: black; }
+    .activity-icon { font-size: 12px; color: #3498db; margin-top: 5px; display: none; cursor: grab; }
+    .activity-list { margin-top: 20px; background: white; padding: 10px; border-radius: 5px; display: none; }
+    .draggable { cursor: grab; padding: 5px; margin: 5px; border-radius: 3px; transition: background-color 0.3s; }
+    .draggable.completed { background-color: #32CD32 !important; color: white; }
+    .edited { border-left: 3px solid #008000; padding-left: 5px; }
+    .status-fields {
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+      justify-content: space-around;
+      background: #e6ffe6;
+      border-radius: 4px;
+      padding: 3px;
+    }
+    .status-fields select, .status-fields input {
+      font-size: 11px;
+      padding: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Linha do Tempo da Folha de Pagamento</h2>
+
+  <div id="settings">
+    <label>Mês:
+      <select id="monthSelect"></select>
+    </label>
+    <label>Ano:
+      <select id="yearSelect"></select>
+    </label>
+    <label>
+      Cor Sábado: <input type="color" id="saturdayColor" value="#00B0F0">
+    </label>
+    <label>
+      Cor Domingo: <input type="color" id="sundayColor" value="#00B0F0">
+    </label>
+    <button onclick="updateTimeline()">Atualizar Mês</button>
+    <button onclick="showWeekendActivities()">Atividades Fim de Semana</button>
+  </div>
+
+  <div class="timeline" id="timeline"></div>
+  <div class="activity-list" id="activityList">
+    <h3 id="selectedDay"></h3>
+    <ul id="activities"></ul>
+    <input type="text" id="activityInput" placeholder="Adicionar atividade">
+    <button onclick="addActivity()">Adicionar</button>
+    <button onclick="exportData()">Exportar JSON</button>
+    <button onclick="clearAllActivities()">Limpar Atividades</button>
+    <input type="file" id="importFile" onchange="importData(event)">
+  </div>
+
+  <script>
+    const timeline = document.getElementById("timeline");
+    const activityList = document.getElementById("activityList");
+    const selectedDay = document.getElementById("selectedDay");
+    const activities = document.getElementById("activities");
+    const activityInput = document.getElementById("activityInput");
+    let activityData = JSON.parse(localStorage.getItem("activityData")) || {};
+
+    function getDaysInMonth(year, month) { return new Date(year, month + 1, 0).getDate(); }
+    function getFirstDayOfMonth(year, month) { return new Date(year, month, 1).getDay(); }
+
+    function migrateInvalidDays(year, month) {
+      let totalDays = getDaysInMonth(year, month);
+      Object.keys(activityData).forEach(day => {
+        let num = parseInt(day);
+        if(num > totalDays) {
+          if(!activityData[totalDays]) activityData[totalDays] = [];
+          activityData[totalDays] = activityData[totalDays].concat(activityData[num]);
+          delete activityData[num];
+        }
+      });
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+    }
+
+    function createTimeline(year, month) {
+      timeline.innerHTML = "";
+      migrateInvalidDays(year, month);
+
+      let firstDay = getFirstDayOfMonth(year, month);
+      let totalDays = getDaysInMonth(year, month);
+      let saturdayColor = document.getElementById("saturdayColor").value;
+      let sundayColor = document.getElementById("sundayColor").value;
+
+      let todosDiv = document.createElement("div");
+      todosDiv.classList.add("day");
+      todosDiv.setAttribute("data-day", "Todos");
+      todosDiv.innerText = "Todos";
+      todosDiv.addEventListener("click", function(){
+        document.querySelectorAll(".day").forEach(day => day.classList.remove("selected"));
+        showActivities("Todos");
+      });
+      timeline.appendChild(todosDiv);
+
+      for (let i = 1; i <= totalDays; i++) {
+        let dayDiv = document.createElement("div");
+        dayDiv.classList.add("day");
+        dayDiv.setAttribute("data-day", i);
+        dayDiv.innerHTML = i;
+        dayDiv.addEventListener("click", function(){
+          markSelected(this);
+          showActivities(this.getAttribute("data-day"));
+        });
+        dayDiv.ondragover = allowDrop;
+        dayDiv.ondrop = dropDay;
+
+        let dayOfWeek = (firstDay + i - 1) % 7;
+        if(activityData[i] && activityData[i].length > 0) dayDiv.style.backgroundColor = "#ffffff";
+        else {
+          if(dayOfWeek === 6) dayDiv.style.backgroundColor = saturdayColor;
+          else if(dayOfWeek === 0) dayDiv.style.backgroundColor = sundayColor;
+          else dayDiv.style.backgroundColor = "#ffffff";
+        }
+
+        let activityIcon = document.createElement("div");
+        activityIcon.classList.add("activity-icon");
+        activityIcon.innerText = "📌";
+        dayDiv.appendChild(activityIcon);
+        timeline.appendChild(dayDiv);
+        if (activityData[i] && activityData[i].length > 0) {
+          activityIcon.style.display = "block";
+          activityIcon.draggable = true;
+          activityIcon.ondragstart = dragPin;
+        }
+      }
+    }
+
+    function markSelected(selectedElem) {
+      document.querySelectorAll(".day").forEach(day => {
+        day.classList.remove("selected");
+        updateDayIcon(day.getAttribute("data-day"));
+      });
+      if(selectedElem.getAttribute("data-day") !== "Todos"){
+        selectedElem.classList.add("selected");
+        updateDayIcon(selectedElem.getAttribute("data-day"));
+      }
+    }
+
+    function updateTimeline() {
+      let year = parseInt(document.getElementById("yearSelect").value);
+      let month = parseInt(document.getElementById("monthSelect").value);
+      createTimeline(year, month);
+    }
+
+    function addActivity() {
+      let text = selectedDay.innerText;
+      let day = null;
+      if (text.startsWith("Atividades do dia ")) day = text.replace("Atividades do dia ", "");
+      if (!day || day === "Todos" || text === "Atividades") {
+        alert("Selecione um dia específico para adicionar atividades.");
+        return;
+      }
+
+      let activity = activityInput.value.trim();
+      if (activity) {
+        if (!activityData[day]) activityData[day] = [];
+        activityData[day].push({
+          text: activity,
+          edited: false,
+          checked: false,
+          status: "Pendente",
+          responsavel: "",
+          prioridade: "Média"
+        });
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+        activityInput.value = "";
+        showActivities(day);
+        updateDayIcon(day);
+      }
+    }
+
+    function updateDayIcon(day) {
+      if(day === "Todos") return;
+      let dayDiv = document.querySelector(`.day[data-day='${day}']`);
+      if(!dayDiv) return;
+      let activityIcon = dayDiv.querySelector(".activity-icon");
+      if ((activityData[day] && activityData[day].length > 0) || dayDiv.classList.contains("selected")) {
+        activityIcon.style.display = "block";
+      } else activityIcon.style.display = "none";
+    }
+
+    function allowDrop(ev) { ev.preventDefault(); }
+    function dragActivity(ev) { ev.dataTransfer.setData("activity", ev.target.textContent); }
+    function dragPin(ev) { let sourceDay = ev.target.parentElement.getAttribute("data-day"); ev.dataTransfer.setData("sourceDay", sourceDay); }
+    function dropDay(ev) {
+      ev.preventDefault();
+      let dayDiv = ev.target;
+      while (!dayDiv.classList.contains("day") && dayDiv.parentElement) dayDiv = dayDiv.parentElement;
+      let targetDay = dayDiv.getAttribute("data-day");
+      let activity = ev.dataTransfer.getData("activity");
+      let sourceDay = ev.dataTransfer.getData("sourceDay");
+      if (activity) {
+        if (!activityData[targetDay]) activityData[targetDay] = [];
+        activityData[targetDay].push({ text: activity, edited: false, checked: false });
+      } else if (sourceDay) {
+        if (activityData[sourceDay] && activityData[sourceDay].length > 0) {
+          let movedActivity = activityData[sourceDay].shift();
+          if (!activityData[targetDay]) activityData[targetDay] = [];
+          activityData[targetDay].push(movedActivity);
+        }
+      }
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      updateDayIcon(targetDay);
+    }
+
+    function showActivities(day) {
+      activities.innerHTML = "";
+      if(day === "Todos") {
+        selectedDay.innerText = "Atividades";
+        Object.keys(activityData).forEach(dayKey => {
+          activityData[dayKey].forEach((act, index) => renderActivityItem(dayKey, index, act, "Todos"));
+        });
+      } else {
+        selectedDay.innerText = `Atividades do dia ${day}`;
+        if (activityData[day]) {
+          activityData[day].forEach((act, index) => renderActivityItem(day, index, act, "day"));
+        }
+      }
+      activityList.style.display = "block";
+    }
+
+    function renderActivityItem(dayKey, index, activity, mode) {
+      let li = document.createElement("li");
+      li.innerHTML = activity.text;
+      li.classList.add("draggable");
+      if(activity.checked) li.classList.add("completed");
+
+      let checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = activity.checked;
+      li.prepend(checkbox);
+
+      // Campos ocultos até concluir
+      let statusDiv = document.createElement("div");
+      statusDiv.classList.add("status-fields");
+
+      let statusSel = document.createElement("select");
+      ["Pendente", "Em andamento", "Concluído"].forEach(s => {
+        let opt = document.createElement("option");
+        opt.value = s;
+        opt.text = s;
+        if(activity.status === s) opt.selected = true;
+        statusSel.appendChild(opt);
+      });
+      statusSel.onchange = function(){
+        activityData[dayKey][index].status = this.value;
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+      };
+
+      let respInput = document.createElement("input");
+      respInput.type = "text";
+      respInput.placeholder = "Responsável";
+      respInput.value = activity.responsavel || "";
+      respInput.onchange = function(){
+        activityData[dayKey][index].responsavel = this.value;
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+      };
+
+      let prioridadeSel = document.createElement("select");
+      ["Alta", "Média", "Baixa"].forEach(p => {
+        let opt = document.createElement("option");
+        opt.value = p;
+        opt.text = p;
+        if(activity.prioridade === p) opt.selected = true;
+        prioridadeSel.appendChild(opt);
+      });
+      prioridadeSel.onchange = function(){
+        activityData[dayKey][index].prioridade = this.value;
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+      };
+
+      statusDiv.appendChild(statusSel);
+      statusDiv.appendChild(respInput);
+      statusDiv.appendChild(prioridadeSel);
+      li.appendChild(statusDiv);
+
+      function toggleStatusFields() {
+        if (checkbox.checked) {
+          li.classList.add("completed");
+          statusDiv.style.display = "flex";
+          activityData[dayKey][index].checked = true;
+        } else {
+          li.classList.remove("completed");
+          statusDiv.style.display = "none";
+          activityData[dayKey][index].checked = false;
+        }
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+      }
+
+      toggleStatusFields();
+      checkbox.addEventListener("change", toggleStatusFields);
+
+      li.addEventListener("dblclick", function() {
+        let newText = prompt("Editar atividade:", activity.text);
+        if(newText && newText.trim() !== "") {
+          activityData[dayKey][index].text = newText.trim();
+          activityData[dayKey][index].edited = true;
+          localStorage.setItem("activityData", JSON.stringify(activityData));
+          showActivities(mode === "Todos" ? "Todos" : dayKey);
+          updateDayIcon(dayKey);
+        }
+      });
+
+      li.addEventListener("contextmenu", function(e) {
+        e.preventDefault();
+        if (confirm("Deseja excluir essa atividade?")) {
+          activityData[dayKey].splice(index, 1);
+          localStorage.setItem("activityData", JSON.stringify(activityData));
+          showActivities(mode === "Todos" ? "Todos" : dayKey);
+          updateDayIcon(dayKey);
+        }
+      });
+
+      li.ondragstart = dragActivity;
+      activities.appendChild(li);
+    }
+
+    function showWeekendActivities() {
+      activities.innerHTML = "";
+      selectedDay.innerText = "Atividades de Finais de Semana";
+      let year = parseInt(document.getElementById("yearSelect").value);
+      let month = parseInt(document.getElementById("monthSelect").value);
+      let firstDay = getFirstDayOfMonth(year, month);
+      let totalDays = getDaysInMonth(year, month);
+      for(let i=1; i<=totalDays; i++) {
+        let dayOfWeek = (firstDay + i - 1) % 7;
+        if(dayOfWeek === 0 || dayOfWeek === 6) {
+          if(activityData[i]) {
+            activityData[i].forEach(act => {
+              let li = document.createElement("li");
+              li.innerText = `Dia ${i}: ${act.text}`;
+              activities.appendChild(li);
+            });
+          }
+        }
+      }
+      activityList.style.display = "block";
+    }
+
+    function exportData() {
+      let dataStr = JSON.stringify(activityData);
+      let blob = new Blob([dataStr], { type: "application/json" });
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement("a");
+      a.href = url;
+      a.download = "activityData.json";
+      a.click();
+    }
+
+    function importData(event) {
+      let file = event.target.files[0];
+      let reader = new FileReader();
+      reader.onload = function(e) {
+        activityData = JSON.parse(e.target.result);
+        localStorage.setItem("activityData", JSON.stringify(activityData));
+        updateTimeline();
+      };
+      reader.readAsText(file);
+    }
+
+    function clearAllActivities() {
+      if (confirm("Deseja realmente limpar todas as atividades?")) {
+        activityData = {};
+        localStorage.removeItem("activityData");
+        updateTimeline();
+      }
+    }
+
+    (function init() {
+      let now = new Date();
+      let monthSel = document.getElementById("monthSelect");
+      let yearSel = document.getElementById("yearSelect");
+      for(let m=0; m<12; m++) {
+        let opt = document.createElement("option");
+        opt.value = m;
+        opt.text = new Date(2000, m).toLocaleString("pt-BR", { month: "long" });
+        if(m === now.getMonth()) opt.selected = true;
+        monthSel.appendChild(opt);
+      }
+      for(let y=2020; y<=2030; y++) {
+        let opt = document.createElement("option");
+        opt.value = y;
+        opt.text = y;
+        if(y === now.getFullYear()) opt.selected = true;
+        yearSel.appendChild(opt);
+      }
+      createTimeline(now.getFullYear(), now.getMonth());
+    })();
+  </script>
+</body>
+</html>
