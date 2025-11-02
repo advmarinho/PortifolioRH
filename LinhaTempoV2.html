@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linha do Tempo RH – Completa v8</title>
+  <style>
+    body { font-family: Calibri, sans-serif; background-color: #f7f7f7; margin: 20px; }
+    h2 { text-align: center; color: #2e6da4; }
+    .timeline { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 20px; }
+    .day {
+      width: 55px; height: 55px; background: #fff;
+      border: 2px solid #2e6da4; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-weight: bold; color: #2e6da4;
+      transition: all 0.2s ease;
+    }
+    .day:hover { background-color: #2e6da4; color: white; }
+    .day.selected { background-color: #2e6da4; color: white; }
+    .day.saturday { background-color: #d9edf7; border-color: #5bc0de; }
+    .day.sunday { background-color: #f2dede; border-color: #d9534f; }
+
+    .activity-panel {
+      display: none; background: white; padding: 15px;
+      border-radius: 10px; box-shadow: 0 0 6px #ccc;
+    }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+    th, td { border: 1px solid #ccc; padding: 6px 8px; font-size: 14px; text-align: center; vertical-align: top; word-wrap: break-word; }
+    th { background-color: #e0ecf8; }
+    tr.completed td { background-color: #c2f0c2; }
+
+    textarea {
+      width: 100%; resize: vertical; border: none;
+      background: transparent; font-size: 13px;
+      padding: 4px; font-family: Calibri, sans-serif;
+      line-height: 1.3; overflow-wrap: break-word; white-space: pre-wrap;
+    }
+
+    input, select {
+      width: 100%; border: none; background: transparent;
+      font-size: 13px; padding: 4px;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; background-color: #eef; }
+
+    button {
+      margin: 5px; padding: 8px 15px; border: none; border-radius: 5px;
+      background-color: #2e6da4; color: white; cursor: pointer;
+    }
+    button:hover { background-color: #1b4d7a; }
+
+    .action-btn { padding: 4px 8px; font-size: 12px; margin: 0 2px; border-radius: 4px; white-space: nowrap; }
+    .delete-btn { background-color: #d9534f; color: white; }
+    .delete-btn:hover { background-color: #b52b27; }
+    .move-btn { background-color: #5bc0de; color: white; }
+    .move-btn:hover { background-color: #31b0d5; }
+
+    #progress { font-weight: bold; text-align: right; color: #2e6da4; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>Linha do Tempo RH – Completa v8</h2>
+
+  <div class="timeline" id="timeline"></div>
+  <div id="progress"></div>
+
+  <div class="activity-panel" id="activityPanel">
+    <h3 id="selectedDay"></h3>
+    <button onclick="addActivity()">Adicionar Atividade</button>
+    <button onclick="exportToExcel()">Exportar Excel</button>
+    <button onclick="reiniciarStatus()">Reiniciar Status</button>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 25%;">Atividade</th>
+          <th style="width: 15%;">Responsável</th>
+          <th style="width: 10%;">Prioridade</th>
+          <th style="width: 10%;">Status</th>
+          <th style="width: 7%;">Concluído</th>
+          <th style="width: 25%;">Observação</th>
+          <th style="width: 8%;">Ações</th>
+        </tr>
+      </thead>
+      <tbody id="activityBody"></tbody>
+    </table>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    let activityData = JSON.parse(localStorage.getItem("activityData")) || {};
+
+    function getDaysInMonth(year, month) {
+      return new Date(year, month + 1, 0).getDate();
+    }
+
+    function getUltimaSexta(year, month) {
+      const ultimoDia = getDaysInMonth(year, month);
+      for (let i = ultimoDia; i > 0; i--) {
+        const d = new Date(year, month, i);
+        if (d.getDay() === 5) return i;
+      }
+    }
+
+    // Realoca atividades fim de semana e fim de mês
+    function realocarAtividades() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const ultimaSexta = getUltimaSexta(year, month);
+
+      Object.keys(activityData).forEach(dia => {
+        const numDia = parseInt(dia);
+        const atividades = activityData[dia];
+        const data = new Date(year, month, numDia);
+        const diaSemana = data.getDay();
+
+        if (diaSemana === 6 || diaSemana === 0) {
+          let novaData = new Date(data);
+          if (diaSemana === 6) novaData.setDate(numDia + 2);
+          if (diaSemana === 0) novaData.setDate(numDia + 1);
+          const novoDia = novaData.getDate();
+          if (!activityData[novoDia]) activityData[novoDia] = [];
+          atividades.forEach(a => {
+            a.observacao = (a.observacao || "") + ` [Movido do dia ${numDia}]`;
+            activityData[novoDia].push(a);
+          });
+          delete activityData[dia];
+        } else if (numDia > ultimaSexta) {
+          if (!activityData[ultimaSexta]) activityData[ultimaSexta] = [];
+          atividades.forEach(a => {
+            a.observacao = (a.observacao || "") + " [Movida para última sexta do mês]";
+            activityData[ultimaSexta].push(a);
+          });
+          delete activityData[dia];
+        }
+      });
+
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+    }
+
+    function createTimeline() {
+      const timeline = document.getElementById("timeline");
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const totalDays = getDaysInMonth(year, month);
+      timeline.innerHTML = "";
+
+      const todosDiv = document.createElement("div");
+      todosDiv.classList.add("day");
+      todosDiv.innerText = "Todos";
+      todosDiv.onclick = () => showDayActivities("Todos");
+      timeline.appendChild(todosDiv);
+
+      for (let i = 1; i <= totalDays; i++) {
+        const date = new Date(year, month, i);
+        const dayOfWeek = date.getDay();
+        const dayDiv = document.createElement("div");
+        dayDiv.classList.add("day");
+        dayDiv.innerText = i;
+        if (dayOfWeek === 6) dayDiv.classList.add("saturday");
+        if (dayOfWeek === 0) dayDiv.classList.add("sunday");
+        dayDiv.onclick = () => showDayActivities(i);
+        timeline.appendChild(dayDiv);
+      }
+      updateProgress();
+    }
+
+    function showDayActivities(day) {
+      document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+      const panel = document.getElementById("activityPanel");
+      const body = document.getElementById("activityBody");
+      const title = document.getElementById("selectedDay");
+      panel.style.display = "block";
+      body.innerHTML = "";
+
+      if (day === "Todos") {
+        title.innerText = "Atividades de Todos os Dias";
+        Object.keys(activityData).forEach(key => {
+          activityData[key].forEach((a, i) => renderRow(key, i, a, body));
+        });
+      } else {
+        title.innerText = `Atividades do dia ${day}`;
+        if (!activityData[day]) activityData[day] = [];
+        activityData[day].forEach((a, i) => renderRow(day, i, a, body));
+        const selectedDiv = Array.from(document.querySelectorAll(".day"))
+          .find(d => d.innerText == day);
+        if (selectedDiv) selectedDiv.classList.add("selected");
+      }
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+    }
+
+    function renderRow(day, index, a, body) {
+      const tr = document.createElement("tr");
+      if (a.checked) tr.classList.add("completed");
+      tr.innerHTML = `
+        <td><textarea rows="2" onchange="updateField('${day}', ${index}, 'text', this.value)">${a.text || ""}</textarea></td>
+        <td><input type="text" value="${a.responsavel || ""}" onchange="updateField('${day}', ${index}, 'responsavel', this.value)"></td>
+        <td>
+          <select onchange="updateField('${day}', ${index}, 'prioridade', this.value)">
+            <option ${a.prioridade==='Alta'?'selected':''}>Alta</option>
+            <option ${a.prioridade==='Média'?'selected':''}>Média</option>
+            <option ${a.prioridade==='Baixa'?'selected':''}>Baixa</option>
+          </select>
+        </td>
+        <td>
+          <select onchange="updateField('${day}', ${index}, 'status', this.value)">
+            <option ${a.status==='Pendente'?'selected':''}>Pendente</option>
+            <option ${a.status==='Em andamento'?'selected':''}>Em andamento</option>
+            <option ${a.status==='Concluído'?'selected':''}>Concluído</option>
+          </select>
+        </td>
+        <td><input type="checkbox" ${a.checked?'checked':''} onchange="updateField('${day}', ${index}, 'checked', this.checked)"></td>
+        <td><textarea rows="2" onchange="updateField('${day}', ${index}, 'observacao', this.value)">${a.observacao || ""}</textarea></td>
+        <td>
+          <button class="action-btn move-btn" onclick="moverAtividade('${day}', ${index})">Mover</button>
+          <button class="action-btn delete-btn" onclick="excluirAtividade('${day}', ${index})">Excluir</button>
+        </td>
+      `;
+      body.appendChild(tr);
+    }
+
+    function addActivity() {
+      const dayText = document.getElementById("selectedDay").innerText;
+      const day = dayText.includes("Todos") ? null : dayText.replace("Atividades do dia ", "");
+      if (!day) { alert("Selecione um dia específico para adicionar."); return; }
+      if (!activityData[day]) activityData[day] = [];
+      activityData[day].push({
+        text: "",
+        responsavel: "",
+        prioridade: "Média",
+        status: "Pendente",
+        checked: false,
+        observacao: ""
+      });
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      showDayActivities(day);
+    }
+
+    function excluirAtividade(day, index) {
+      if (!confirm("Deseja excluir esta atividade permanentemente?")) return;
+      activityData[day].splice(index, 1);
+      if (activityData[day].length === 0) delete activityData[day];
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      showDayActivities(day);
+    }
+
+    function moverAtividade(day, index) {
+      const destino = prompt("Mover para qual dia? (número de 1 a 31)");
+      if (!destino || isNaN(destino)) return;
+      const novoDia = parseInt(destino);
+      if (!activityData[novoDia]) activityData[novoDia] = [];
+      const atividade = activityData[day][index];
+      atividade.observacao = (atividade.observacao || "") + ` [Movida do dia ${day}]`;
+      activityData[novoDia].push(atividade);
+      excluirAtividade(day, index);
+      alert(`Atividade movida para o dia ${novoDia}.`);
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      showDayActivities(novoDia);
+    }
+
+    function reiniciarStatus() {
+      if (!confirm("Deseja reiniciar todos os status sem apagar as atividades?")) return;
+      Object.keys(activityData).forEach(dia => {
+        activityData[dia].forEach(a => {
+          a.status = "Pendente";
+          a.checked = false;
+        });
+      });
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      updateProgress();
+      alert("Todos os status foram reiniciados com sucesso.");
+      showDayActivities("Todos");
+    }
+
+    function updateField(day, index, field, value) {
+      activityData[day][index][field] = value;
+      if (field === "checked") activityData[day][index].status = value ? "Concluído" : "Pendente";
+      localStorage.setItem("activityData", JSON.stringify(activityData));
+      updateProgress();
+    }
+
+    function exportToExcel() {
+      let all = [];
+      Object.keys(activityData).forEach(day => {
+        activityData[day].forEach(a => {
+          all.push({
+            Dia: day,
+            Atividade: a.text,
+            Responsável: a.responsavel,
+            Prioridade: a.prioridade,
+            Status: a.status,
+            Concluído: a.checked ? "Sim" : "Não",
+            Observação: a.observacao || ""
+          });
+        });
+      });
+      const ws = XLSX.utils.json_to_sheet(all);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Atividades");
+      XLSX.writeFile(wb, "LinhaTempoRH_Completa_v8.xlsx");
+    }
+
+    function updateProgress() {
+      let total = 0, done = 0;
+      Object.values(activityData).forEach(dia => {
+        dia.forEach(a => {
+          total++;
+          if (a.checked) done++;
+        });
+      });
+      const pct = total ? ((done / total) * 100).toFixed(1) : 0;
+      document.getElementById("progress").innerText = `Progresso: ${pct}% (${done}/${total})`;
+    }
+
+    window.onload = function() {
+      realocarAtividades();
+      createTimeline();
+    };
+  </script>
+</body>
+</html>
