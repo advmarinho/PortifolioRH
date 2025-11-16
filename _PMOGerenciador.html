@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador RH – PMO SONOVA</title>
+
+  <style>
+    body {
+      font-family: Calibri, sans-serif;
+      background-color: #f7f7f7;
+      margin: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #2e6da4;
+    }
+
+    /* MENU */
+    .menu {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+    .menu button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      background-color: #2e6da4;
+      color: white;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .menu button:hover {
+      background-color: #1b4d7a;
+    }
+    .panel {
+      display: none;
+    }
+
+    #mesAtual {
+      text-align: center;
+      font-size: 20px;
+      color: #2e6da4;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+
+    /* ===== TIMELINE ===== */
+    .timeline {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .day {
+      width: 55px;
+      height: 55px;
+      background: #fff;
+      border: 2px solid #2e6da4;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+      color: #2e6da4;
+      transition: .2s;
+    }
+    .day:hover {
+      background-color: #2e6da4;
+      color: white;
+    }
+    .day.selected {
+      background-color: #2e6da4;
+      color: white;
+    }
+    .day.concluido {
+      background-color: #2ecc71 !important;
+      border-color: #27ae60 !important;
+      color: white !important;
+    }
+
+    .day.saturday {
+      background-color: #d9edf7;
+      border-color: #5bc0de;
+    }
+    .day.sunday {
+      background-color: #f2dede;
+      border-color: #d9534f;
+    }
+
+    .activity-panel {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 6px #ccc;
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      table-layout: fixed;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      font-size: 14px;
+      text-align: center;
+    }
+    th {
+      background-color: #e0ecf8;
+      font-weight: bold;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 13px;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      outline: none;
+      background-color: #eef;
+    }
+
+    button.action-btn {
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 13px;
+      cursor: pointer;
+      z-index: 10;
+      pointer-events: auto;
+    }
+
+    .delete-btn { background: #d9534f; color: white; }
+    .move-btn { background: #5bc0de; color: white; }
+
+    .delete-btn:hover { background: #b52b27; }
+    .move-btn:hover { background: #31b0d5; }
+
+    #progress {
+      font-weight: bold;
+      text-align: right;
+      color: #2e6da4;
+      margin-bottom: 10px;
+    }
+
+    .tr-concluido {
+      background-color: #d4f7df !important;
+    }
+    .tr-concluido button {
+      pointer-events: auto !important;
+    }
+
+    /* ===== FLUXO ===== */
+    #fluxoBoard {
+      display: flex;
+      gap: 20px;
+      padding: 10px;
+    }
+
+    .coluna {
+      width: 32%;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 6px #ccc;
+    }
+
+    .coluna h3 {
+      text-align: center;
+      color: #2e6da4;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    .card {
+      background: #e8f1ff;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      border-left: 6px solid #2e6da4;
+    }
+
+    .card-concluido {
+      border-left-color: #2ecc71 !important;
+      background-color: #dbf7e6 !important;
+    }
+
+    .card-atrasado {
+      border-left-color: #e74c3c !important;
+    }
+
+    .card-andamento {
+      border-left-color: #3498db !important;
+    }
+
+    /* ===== GANTT ===== */
+    #ganttContainer {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 0 6px #ccc;
+      overflow-x: auto;
+      white-space: nowrap;
+      margin-top: 20px;
+    }
+
+    .gantt-header {
+      display: flex;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .gantt-header div {
+      width: 30px;
+      text-align: center;
+      border-right: 1px solid #ddd;
+    }
+
+    .gantt-row {
+      position: relative;
+      height: 34px;
+      margin-top: 10px;
+    }
+
+    .gantt-bar {
+      position: absolute;
+      height: 28px;
+      border-radius: 4px;
+      color: white;
+      padding: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .prioAlta { background-color: #b30000; }
+    .prioMedia { background-color: #d48700; }
+    .prioBaixa { background-color: #2e6da4; }
+
+    .gantt-bar.concluido {
+      background-color: #2ecc71 !important;
+      border: 1px solid #27ae60;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Gerenciador RH – PMO SONOVA</h2>
+
+<div class="menu">
+  <button onclick="openPanel('timelinePanel')">Linha do Tempo</button>
+  <button onclick="openPanel('fluxoPanel')">Fluxo</button>
+  <button onclick="openPanel('ganttPanel')">Gantt</button>
+</div>
+
+<div id="mesAtual"></div>
+
+<!-- ================= TIMELINE ================= -->
+<div id="timelinePanel" class="panel" style="display:block;">
+
+  <div class="timeline" id="timeline"></div>
+  <div id="progress"></div>
+
+  <div class="activity-panel">
+
+    <h3 id="selectedDay"></h3>
+
+    <button onclick="addActivity()">Adicionar Atividade</button>
+    <button onclick="exportToExcel()">Exportar Excel</button>
+    <button onclick="showAllActivities()">Todas as Atividades</button>
+    <button onclick="exportBackup()">Salvar JSON</button>
+    <button onclick="importBackup()">Importar JSON</button>
+
+    <input type="file" id="importFile" accept=".json" style="display:none"
+           onchange="handleImportFile(event)">
+
+    <table>
+      <thead>
+      <tr>
+        <th>Atividade</th>
+        <th>Responsável</th>
+        <th>Prioridade</th>
+        <th>Status</th>
+        <th>Início</th>
+        <th>Fim</th>
+        <th>Depende</th>
+        <th>Obs</th>
+        <th>Ações</th>
+      </tr>
+      </thead>
+      <tbody id="activityBody"></tbody>
+    </table>
+
+  </div>
+</div>
+
+<!-- ================= FLUXO ================= -->
+<div id="fluxoPanel" class="panel">
+  <h2>Fluxo de Atividades</h2>
+
+  <input type="text" id="searchFluxo"
+         placeholder="Pesquisar..."
+         style="padding:10px; width:50%; margin-bottom:15px;
+                border-radius:5px; border:1px solid #ccc;"
+         onkeyup="filterFluxo()">
+
+  <div id="fluxoBoard">
+    <div class="coluna" id="todo"><h3>Pendente</h3></div>
+    <div class="coluna" id="doing"><h3>Em andamento</h3></div>
+    <div class="coluna" id="done"><h3>Concluído</h3></div>
+  </div>
+</div>
+
+<!-- ================= GANTT ================= -->
+<div id="ganttPanel" class="panel">
+  <h2>Diagrama de Gantt</h2>
+  <div id="ganttContainer"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+let activityData = JSON.parse(localStorage.getItem("activityData")) || {};
+
+function saveData() {
+  localStorage.setItem("activityData", JSON.stringify(activityData));
+  updateProgress();
+  updateDaysColors();
+  verificarAtrasos();
+  renderFluxo();
+  renderGantt();
+}
+
+function updateMesTexto() {
+  const now = new Date();
+  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho",
+  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  document.getElementById("mesAtual").innerText =
+    `${meses[now.getMonth()]} de ${now.getFullYear()}`;
+}
+
+function getDaysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+
+function createTimeline() {
+  const timeline=document.getElementById("timeline");
+  const now=new Date();
+  const y=now.getFullYear();
+  const m=now.getMonth();
+  const total=getDaysInMonth(y,m);
+
+  timeline.innerHTML="";
+
+  for(let i=1;i<=total;i++){
+    const dt=new Date(y,m,i);
+    const dow=dt.getDay();
+    const div=document.createElement("div");
+
+    div.classList.add("day");
+    div.innerText=i;
+
+    if(dow===6) div.classList.add("saturday");
+    if(dow===0) div.classList.add("sunday");
+
+    div.onclick=()=>showDay(i);
+    timeline.appendChild(div);
+  }
+}
+
+function updateDaysColors(){
+  document.querySelectorAll(".day").forEach(el=>{
+    const dia=parseInt(el.innerText);
+    const list=activityData[dia]||[];
+
+    el.classList.remove("concluido");
+
+    if(list.length>0 && list.every(a=>a.status==="Concluído")){
+      el.classList.add("concluido");
+    }
+  });
+}
+
+function highlightDay(day){
+  document.querySelectorAll(".day").forEach(d=>d.classList.remove("selected"));
+  const found=[...document.querySelectorAll(".day")].find(d=>d.innerText==day);
+  if(found) found.classList.add("selected");
+}
+
+function showDay(day){
+  highlightDay(day);
+  const body=document.getElementById("activityBody");
+  document.getElementById("selectedDay").innerText=`Dia ${day}`;
+  body.innerHTML="";
+
+  if(!activityData[day]) activityData[day]=[];
+
+  activityData[day].forEach((a,i)=>{
+    const tr=document.createElement("tr");
+    if(a.status==="Concluído"){ tr.classList.add("tr-concluido"); }
+
+    tr.innerHTML=`
+      <td><textarea onchange="updateField(${day},${i},'text',this.value)">${a.text||""}</textarea></td>
+      <td><input value="${a.responsavel||""}" onchange="updateField(${day},${i},'responsavel',this.value)"></td>
+
+      <td>
+        <select onchange="updateField(${day},${i},'prioridade',this.value)">
+          <option ${a.prioridade==="Alta"?'selected':''}>Alta</option>
+          <option ${a.prioridade==="Média"?'selected':''}>Média</option>
+          <option ${a.prioridade==="Baixa"?'selected':''}>Baixa</option>
+        </select>
+      </td>
+
+      <td>
+        <select onchange="updateField(${day},${i},'status',this.value)">
+          <option ${a.status==="Pendente"?'selected':''}>Pendente</option>
+          <option ${a.status==="Em andamento"?'selected':''}>Em andamento</option>
+          <option ${a.status==="Concluído"?'selected':''}>Concluído</option>
+        </select>
+      </td>
+
+      <td><input type="date" value="${a.inicio||""}" onchange="updateField(${day},${i},'inicio',this.value)"></td>
+      <td><input type="date" value="${a.fim||""}" onchange="updateField(${day},${i},'fim',this.value)"></td>
+      <td><input value="${a.depende||""}" onchange="updateField(${day},${i},'depende',this.value)"></td>
+      <td><textarea onchange="updateField(${day},${i},'obs',this.value)">${a.obs||""}</textarea></td>
+
+      <td>
+        <button class="action-btn move-btn" onclick="moveActivity(${day},${i})">Mover</button>
+        <button class="action-btn delete-btn" onclick="deleteActivity(${day},${i})">Excluir</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  saveData();
+}
+
+/* ===== UPDATE FIELD ===== */
+function updateField(day,index,field,value){
+  activityData[day][index][field]=value;
+  saveData();
+  if(field==="status") showDay(day);
+}
+
+/* ===== ADICIONAR ATIVIDADE ===== */
+function addActivity(){
+  let texto=document.getElementById("selectedDay").innerText.trim();
+  let day=null;
+
+  if(texto.startsWith("Dia ")) day=parseInt(texto.replace("Dia ",""));
+  else if(texto==="Todas as Atividades") day=parseInt(prompt("Dia (1-31):"));
+
+  if(!day || isNaN(day)) day=new Date().getDate();
+
+  if(!activityData[day]) activityData[day]=[];
+
+  activityData[day].push({
+    id: crypto.randomUUID(),
+    text:"",
+    responsavel:"",
+    prioridade:"Média",
+    status:"Pendente",
+    inicio:"",
+    fim:"",
+    depende:"",
+    obs:""
+  });
+
+  saveData();
+  showDay(day);
+}
+
+/* ===== EXCLUIR ===== */
+function deleteActivity(day,index){
+  if(!confirm("Excluir esta atividade?")) return;
+
+  activityData[day].splice(index,1);
+  if(activityData[day].length===0) delete activityData[day];
+
+  saveData();
+
+  let titulo=document.getElementById("selectedDay").innerText;
+  if(titulo.startsWith("Dia ")) showDay(day);
+  else showAllActivities();
+}
+
+/* ===== MOVER ===== */
+function moveActivity(day,index){
+  const novo=parseInt(prompt("Mover para qual dia?"));
+  if(!novo || isNaN(novo)) return;
+
+  if(!activityData[novo]) activityData[novo]=[];
+
+  const atv=activityData[day][index];
+  atv.obs=(atv.obs||"")+" [Movida do dia "+day+"]";
+
+  activityData[novo].push(atv);
+  activityData[day].splice(index,1);
+
+  if(activityData[day].length===0) delete activityData[day];
+
+  saveData();
+  showDay(novo);
+}
+
+/* ===== TODAS ATIVIDADES ===== */
+function showAllActivities(){
+  const body=document.getElementById("activityBody");
+  document.getElementById("selectedDay").innerText="Todas as Atividades";
+  body.innerHTML="";
+
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach((a,i)=>{
+      const tr=document.createElement("tr");
+      if(a.status==="Concluído"){ tr.classList.add("tr-concluido"); }
+
+      tr.innerHTML=`
+      <td><textarea onchange="updateField(${day},${i},'text',this.value)">${a.text||""}</textarea></td>
+      <td><input value="${a.responsavel||""}" onchange="updateField(${day},${i},'responsavel',this.value)"></td>
+
+      <td>
+        <select onchange="updateField(${day},${i},'prioridade',this.value)">
+          <option ${a.prioridade==='Alta'?'selected':''}>Alta</option>
+          <option ${a.prioridade==='Média'?'selected':''}>Média</option>
+          <option ${a.prioridade==='Baixa'?'selected':''}>Baixa</option>
+        </select>
+      </td>
+
+      <td>
+        <select onchange="updateField(${day},${i},'status',this.value)">
+          <option ${a.status==='Pendente'?'selected':''}>Pendente</option>
+          <option ${a.status==='Em andamento'?'selected':''}>Em andamento</option>
+          <option ${a.status==='Concluído'?'selected':''}>Concluído</option>
+        </select>
+      </td>
+
+      <td><input type="date" value="${a.inicio||""}" onchange="updateField(${day},${i},'inicio',this.value)"></td>
+      <td><input type="date" value="${a.fim||""}" onchange="updateField(${day},${i},'fim',this.value)"></td>
+      <td><input value="${a.depende||""}" onchange="updateField(${day},${i},'depende',this.value)"></td>
+      <td><textarea onchange="updateField(${day},${i},'obs',this.value)">${a.obs||""}</textarea></td>
+
+      <td>
+        <button class="action-btn move-btn" onclick="moveActivity(${day},${i})">Mover</button>
+        <button class="action-btn delete-btn" onclick="deleteActivity(${day},${i})">Excluir</button>
+      </td>`;
+      body.appendChild(tr);
+    });
+  });
+}
+
+/* ===== FLUXO (KANBAN) ===== */
+function renderFluxo(){
+  const todo=document.getElementById("todo");
+  const doing=document.getElementById("doing");
+  const done=document.getElementById("done");
+
+  todo.innerHTML="<h3>Pendente</h3>";
+  doing.innerHTML="<h3>Em andamento</h3>";
+  done.innerHTML="<h3>Concluído</h3>";
+
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach(a=>{
+      const card=document.createElement("div");
+      card.classList.add("card");
+
+      if(a.status==="Concluído") card.classList.add("card-concluido");
+      else if(a.atrasada) card.classList.add("card-atrasado");
+      else if(a.status==="Em andamento") card.classList.add("card-andamento");
+
+      card.innerHTML=`
+        <b>${a.text||""}</b><br>
+        Dia: ${day}<br>
+        ${a.inicio||""} → ${a.fim||""}
+      `;
+
+      card.onclick=()=>{
+        openPanel("timelinePanel");
+        showDay(day);
+      };
+
+      if(a.status==="Pendente") todo.appendChild(card);
+      else if(a.status==="Em andamento") doing.appendChild(card);
+      else done.appendChild(card);
+    });
+  });
+}
+
+function filterFluxo(){
+  const termo=document.getElementById("searchFluxo").value.toLowerCase();
+  document.querySelectorAll("#fluxoBoard .card").forEach(card=>{
+    card.style.display=card.innerText.toLowerCase().includes(termo)?"block":"none";
+  });
+}
+
+/* ===== GANTT ===== */
+function renderGantt(){
+  const container=document.getElementById("ganttContainer");
+  container.innerHTML="";
+
+  const now=new Date();
+  const y=now.getFullYear();
+  const m=now.getMonth();
+  const total=getDaysInMonth(y,m);
+  const dayWidth=30;
+
+  const header=document.createElement("div");
+  header.classList.add("gantt-header");
+
+  for(let d=1;d<=total;d++){
+    const div=document.createElement("div");
+    div.innerText=d;
+    header.appendChild(div);
+  }
+  container.appendChild(header);
+
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach(a=>{
+      if(!a.inicio || !a.fim) return;
+
+      const inicio=new Date(a.inicio);
+      const fim=new Date(a.fim);
+
+      if(inicio.getMonth()!==m && fim.getMonth()!==m) return;
+
+      const row=document.createElement("div");
+      row.classList.add("gantt-row");
+
+      const bar=document.createElement("div");
+      bar.classList.add("gantt-bar");
+
+      if(a.status==="Concluído") bar.classList.add("concluido");
+      else if(a.prioridade==="Alta") bar.classList.add("prioAlta");
+      else if(a.prioridade==="Média") bar.classList.add("prioMedia");
+      else bar.classList.add("prioBaixa");
+
+      const start=inicio.getDate();
+      const end=fim.getDate();
+
+      bar.style.left=(start-1)*dayWidth+"px";
+      bar.style.width=(end-start+1)*dayWidth+"px";
+      bar.innerText=a.text||"";
+
+      bar.onclick=()=>{
+        openPanel("timelinePanel");
+        showDay(day);
+      };
+
+      row.appendChild(bar);
+      container.appendChild(row);
+    });
+  });
+}
+
+/* ===== PROGRESSO ===== */
+function updateProgress(){
+  let total=0,done=0;
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach(a=>{
+      total++;
+      if(a.status==="Concluído") done++;
+    });
+  });
+
+  const pct=total?((done/total)*100).toFixed(1):0;
+  document.getElementById("progress").innerText=
+    `Progresso: ${pct}% (${done}/${total})`;
+}
+
+/* ===== ATRASOS ===== */
+function verificarAtrasos(){
+  const hoje=new Date();
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach(a=>{
+      if(a.fim && a.status!=="Concluído"){
+        const f=new Date(a.fim);
+        a.atrasada=f<hoje;
+      } else a.atrasada=false;
+    });
+  });
+}
+
+/* ===== EXPORTAÇÃO / BACKUP ===== */
+function exportToExcel(){
+  let linhas=[];
+  Object.keys(activityData).forEach(day=>{
+    activityData[day].forEach(a=>{
+      linhas.push({
+        Dia:day,Atividade:a.text,Responsavel:a.responsavel,
+        Prioridade:a.prioridade,Status:a.status,
+        Inicio:a.inicio,Fim:a.fim,Depende:a.depende,Obs:a.obs
+      });
+    });
+  });
+
+  const ws=XLSX.utils.json_to_sheet(linhas);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Atividades");
+  XLSX.writeFile(wb,"Gerenciador_RH.xlsx");
+}
+
+function exportBackup(){
+  const blob=new Blob([JSON.stringify(activityData,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="backup_gerenciador.json";
+  a.click();
+}
+
+function importBackup(){
+  document.getElementById("importFile").click();
+}
+
+function handleImportFile(evt){
+  const file=evt.target.files[0];
+  if(!file) return;
+
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      activityData=JSON.parse(e.target.result);
+      saveData();
+      createTimeline();
+      showAllActivities();
+      alert("Backup importado com sucesso!");
+    }catch{
+      alert("Erro ao importar JSON.");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ===== PAINÉIS ===== */
+function openPanel(panel){
+  document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
+  document.getElementById(panel).style.display="block";
+
+  if(panel==="fluxoPanel") renderFluxo();
+  if(panel==="ganttPanel") renderGantt();
+}
+
+/* ===== START ===== */
+updateMesTexto();
+createTimeline();
+
+const hoje=new Date().getDate();
+showDay(hoje);
+
+renderFluxo();
+updateProgress();
+verificarAtrasos();
+renderGantt();
+
+</script>
+
+</body>
+</html>
