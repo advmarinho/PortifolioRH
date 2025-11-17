@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Gerador Automático de Fluxos – Texto para SVG + XLSX</title>
+
+<style>
+  body {
+    font-family: Calibri, sans-serif;
+    background-color: #f5f5f5;
+    padding: 20px;
+  }
+
+  textarea {
+    width: 100%;
+    height: 200px;
+    font-family: Calibri;
+    font-size: 15px;
+    padding: 10px;
+  }
+
+  button {
+    margin-top: 10px;
+    padding: 10px 15px;
+    font-size: 16px;
+    background-color: #004A99;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  svg {
+    margin-top: 20px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 0 8px rgba(0,0,0,0.1);
+  }
+</style>
+</head>
+<body>
+
+<h2>Gerador Automático de Fluxos – Texto para SVG + Exportação Excel</h2>
+
+<textarea id="input">
+Dia 31 – Início
+Dia 30 – Solicitação de Vaga
+Dia 29 – Aprovação BP (decision)
+Dia 28 – Divulgação da Vaga
+Dia 27 – Triagem TA + Análise de Perfil
+Dia 26 – Entrevista Técnica + Comportamental
+Dia 25 – Candidato Finalista
+Dia 24 – Gestor aprova o candidato? (decision)
+Dia 23 – Carta Oferta e Confidencialidade
+Dia 22 – Candidato aceita a Oferta? (decision)
+Dia 21 – Documentação – Forms
+Dia 20 – Upload de Documentos Obrigatórios
+Dia 19 – Status ADP “Documentação Completa”
+Dia 18 – Validação Documental DP
+Dia 17 – Validação CPF/PIS
+Dia 16 – Exame Admissional
+Dia 15 – Candidato Apto? (decision)
+Dia 14 – Cadastro ADP + Benefícios + eSocial S-2200
+Dia 13 – Liberações Internas (TI / Facilities)
+Dia 12 – Criação de E-mail Corporativo
+Dia 11 – Liberação de Acessos ADP / Crachá / Ponto
+Dia 10 – Comunicação de Boas-Vindas
+Dia 9 – Confirmação do Colaborador
+Dia 8 – Integração Institucional
+Dia 7 – Entrega de Equipamentos e Acessos
+Dia 6 – Treinamentos (ADP, Ponto, Políticas)
+Dia 5 – Checklist de Onboarding Concluído
+Dia 4 – Pós-Admissão DP (eSocial / INSS)
+Dia 3 – Atualização do Dossiê Digital
+Dia 2 – Indicadores e SLA de Admissão
+Dia 1 – Acompanhamento Feedback Novo Colaborador
+Dia 0 – Fim do Processo – Colaborador Ativo
+</textarea>
+
+<button onclick="gerarFluxo()">Gerar Fluxo</button>
+<button onclick="exportarExcel()">Exportar Excel</button>
+<button onclick="exportarPNG()">Exportar PNG</button>
+
+<svg id="fluxo" width="1900" height="400"></svg>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+// -------------------------------------------------------------
+// Utilitário para criar elementos SVG
+// -------------------------------------------------------------
+function create(tag, attrs = {}) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
+// -------------------------------------------------------------
+// Quebra de texto dentro das caixas (texto azul inline)
+// -------------------------------------------------------------
+function wrapText(svg, text, x, y, maxWidth) {
+  const words = text.split(" ");
+  let line = "";
+  let dy = 0;
+  const lineHeight = 14;
+
+  const textEl = create("text", {
+    x: x,
+    y: y,
+    fill: "#004A99",
+    "font-size": "12",
+    "text-anchor": "middle"
+  });
+
+  words.forEach(word => {
+    const test = line + word + " ";
+    const testEl = create("text", {
+      fill: "#004A99",
+      "font-size": "12"
+    });
+    testEl.textContent = test;
+    svg.appendChild(testEl);
+
+    if (testEl.getBBox().width > maxWidth) {
+      const tspan = create("tspan", { x: x, dy: dy });
+      tspan.textContent = line;
+      textEl.appendChild(tspan);
+      dy = lineHeight;
+      line = word + " ";
+    } else {
+      line = test;
+    }
+
+    svg.removeChild(testEl);
+  });
+
+  const last = create("tspan", { x: x, dy: dy });
+  last.textContent = line;
+  textEl.appendChild(last);
+  svg.appendChild(textEl);
+}
+
+// -------------------------------------------------------------
+// Core principal
+// -------------------------------------------------------------
+function gerarFluxo() {
+  const svg = document.getElementById("fluxo");
+  svg.innerHTML = "";
+
+  const texto = document.getElementById("input").value.trim();
+  if (!texto) return;
+
+  const linhas = texto.split("\n").map(l => l.trim()).filter(l => l);
+
+  const steps = linhas.map(l => {
+    const match = l.match(/Dia\s*(\d+)\s*[–-]\s*(.*)/i);
+    if (!match) return null;
+
+    const dia = parseInt(match[1], 10);
+    let texto = match[2];
+    const tipo = texto.includes("(decision)") ? "decision" : "box";
+
+    texto = texto.replace("(decision)", "").trim();
+
+    return { dia, texto, tipo };
+  }).filter(Boolean);
+
+  renderSVG(steps);
+}
+
+// -------------------------------------------------------------
+// Renderização SVG em colunas de 10 passos, sem bolinha de dia
+// -------------------------------------------------------------
+function renderSVG(steps) {
+  const svg = document.getElementById("fluxo");
+
+  const maxPorColuna = 10;
+  const numColunas = Math.ceil(steps.length / maxPorColuna);
+
+  const w = 340;           // largura da caixa
+  const h = 40;            // altura da caixa
+  const gap = 110;         // espaço vertical entre caixas
+  const baseY = 80;
+
+  const baseBoxX = 120;    // primeira coluna mais à esquerda
+  const espacoColuna = 430; // espaço entre colunas (mais compacto)
+
+  const maxLinhasVisiveis = Math.min(maxPorColuna, steps.length);
+  const totalHeight = baseY + (maxLinhasVisiveis - 1) * gap + 200;
+  const totalWidth = baseBoxX + (numColunas - 1) * espacoColuna + w + 120;
+
+  svg.setAttribute("height", totalHeight);
+  svg.setAttribute("width", totalWidth);
+
+  // marcador da seta
+  const defs = create("defs");
+  defs.innerHTML = `
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#004A99"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  // pré-calcula posição de cada passo (coluna/linha)
+  const layout = steps.map((s, idx) => {
+    const col = Math.floor(idx / maxPorColuna);
+    const row = idx % maxPorColuna;
+
+    const xBox = baseBoxX + col * espacoColuna;
+    const y = baseY + row * gap;
+
+    return {
+      ...s,
+      idx,
+      col,
+      row,
+      xBox,
+      y
+    };
+  });
+
+  // desenha caixas/losangos (sem bolinhas de dia)
+  layout.forEach(item => {
+    const { dia, texto, tipo, xBox, y } = item;
+
+    if (tipo === "box") {
+      svg.appendChild(create("rect", {
+        x: xBox,
+        y: y,
+        width: w,
+        height: h,
+        fill: "white",
+        stroke: "#004A99",
+        "stroke-width": 1.5
+      }));
+      wrapText(svg, "Dia " + dia + " – " + texto, xBox + w / 2, y + 22, w - 20);
+    }
+
+    if (tipo === "decision") {
+      const cx = xBox + w / 2;
+      const cy = y + 20;
+      svg.appendChild(create("polygon", {
+        points: `
+          ${cx},${cy - 30}
+          ${cx + 80},${cy}
+          ${cx},${cy + 30}
+          ${cx - 80},${cy}`,
+        fill: "white",
+        stroke: "#004A99",
+        "stroke-width": 1.5
+      }));
+      wrapText(svg, "Dia " + dia + " – " + texto, cx, cy + 5, 160);
+    }
+  });
+
+  // ligações entre passos
+  for (let i = 0; i < layout.length - 1; i++) {
+    const atual = layout[i];
+    const prox = layout[i + 1];
+
+    if (atual.col === prox.col) {
+      // mesma coluna -> seta vertical
+      const x1 = atual.xBox + w / 2;
+      let y1 = atual.y + h;
+      let y2 = prox.y - 10;
+
+      if (prox.tipo === "decision") {
+        y2 = prox.y + 20 - 30;
+      }
+
+      svg.appendChild(create("line", {
+        x1: x1,
+        y1: y1,
+        x2: x1,
+        y2: y2,
+        stroke: "#004A99",
+        "stroke-width": 1.4,
+        fill: "none",
+        "marker-end": "url(#arrow)"
+      }));
+
+      if (prox.tipo === "decision") {
+        // Sim
+        svg.appendChild(create("text", {
+          x: x1 + 90,
+          y: (y1 + y2) / 2,
+          fill: "#004A99",
+          "font-size": "12",
+          "font-weight": "bold"
+        })).textContent = "Sim";
+
+        // Não
+        svg.appendChild(create("text", {
+          x: x1 - 150,
+          y: (y1 + y2) / 2,
+          fill: "#004A99",
+          "font-size": "12",
+          "font-weight": "bold"
+        })).textContent = "Não";
+
+        svg.appendChild(create("path", {
+          d: `M ${x1 - 80} ${y2 + 20}
+              C ${x1 - 200} ${y2 + 20},
+                ${x1 - 200} ${atual.y - 40},
+                ${x1} ${atual.y - 40}`,
+          stroke: "#004A99",
+          "stroke-width": 1.4,
+          fill: "none",
+          "marker-end": "url(#arrow)"
+        }));
+      }
+    } else {
+      // mudança de coluna -> seta DIAGONAL
+      const x1 = atual.xBox + w / 2;
+      const y1 = atual.y + h;       // base da última caixa da coluna anterior
+      const x2 = prox.xBox + w / 2;
+      const y2 = prox.y;            // topo da primeira caixa da próxima coluna
+
+      svg.appendChild(create("line", {
+        x1: x1,
+        y1: y1,
+        x2: x2,
+        y2: y2,
+        stroke: "#004A99",
+        "stroke-width": 1.4,
+        fill: "none",
+        "marker-end": "url(#arrow)"
+      }));
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// Exportação Excel
+// -------------------------------------------------------------
+function exportarExcel() {
+  const texto = document.getElementById("input").value.trim();
+  const linhas = texto.split("\n").map(l => l.trim()).filter(l => l);
+
+  const dados = linhas.map(linha => {
+    const match = linha.match(/Dia\s*(\d+)\s*[–-]\s*(.*)/i);
+    if (!match) return null;
+
+    const dia = Number(match[1]);
+    const desc = match[2].replace("(decision)", "").trim();
+    const decisao = linha.includes("(decision)") ? "Sim/Não" : "";
+
+    return { Dia: dia, Descricao: desc, Decisao: decisao };
+  }).filter(Boolean);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(dados);
+  XLSX.utils.book_append_sheet(wb, ws, "Fluxo");
+
+  XLSX.writeFile(wb, "Fluxo_Onboarding_Sonova.xlsx");
+}
+
+// -------------------------------------------------------------
+// Exportação PNG (alta resolução, com estilos inline)
+// -------------------------------------------------------------
+function exportarPNG() {
+  const svg = document.getElementById("fluxo");
+  const xml = new XMLSerializer().serializeToString(svg);
+  const svg64 = btoa(unescape(encodeURIComponent(xml)));
+  const image64 = "data:image/svg+xml;base64," + svg64;
+
+  const img = new Image();
+  img.onload = function () {
+    const w = Number(svg.getAttribute("width")) || 1900;
+    const h = Number(svg.getAttribute("height")) || 1000;
+
+    const escala = 2; // melhora resolução para PPT
+    const canvas = document.createElement("canvas");
+    canvas.width = w * escala;
+    canvas.height = h * escala;
+
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.scale(escala, escala);
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const link = document.createElement("a");
+    link.download = "Fluxo_Onboarding_Sonova.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+  img.src = image64;
+}
+</script>
+
+</body>
+</html>
