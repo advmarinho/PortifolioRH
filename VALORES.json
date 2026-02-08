@@ -1,0 +1,90 @@
+{
+  "premissas": {
+    "fgts_rate": 0.08,
+    "inss_patronal_rate": 0.2,
+    "rat_rate": 0.02,
+    "terceiros_rate": 0.058,
+    "dsr_rate": 0.16666666666666666,
+    "vr_valor_dia": 40.0,
+    "vt_valor_mes": 350.0,
+    "saude_custo_mes": 580.0,
+    "odonto_custo_mes": 10.0,
+    "seguro_vida_custo_mes": 10.0,
+    "estacionamento_custo_mes": 50.0,
+    "carro_custo_mes": 3000.0,
+    "creche_custo_mes": 350.0,
+    "previdencia_rate": 0.05,
+    "prov_ferias_rate": 0.08333333333333333,
+    "prov_terco_ferias_rate": 0.027777777777777776,
+    "prov_13_rate": 0.08333333333333333,
+    "cct_default_pct": 0.05,
+    "cct_start_mes": "2026-10",
+    "dynamic_in_base_encargos": 1,
+    "dynamic_as_variavel": 0
+  },
+  "premissas_extras": {
+    "VCC": {
+      "tipo": "PERCENTUAL_SALARIO",
+      "valor": 0.083
+    },
+    "VMEDIA": {
+      "tipo": "PERCENTUAL_SALARIO",
+      "valor": 0.166
+    }
+  },
+  "mapping": {
+    "col_matricula": "Matrícula",
+    "col_nome": "Colaborador",
+    "col_cdc": "# CDC",
+    "col_salario_base": "Salário",
+    "col_adicional": "USO RH\nAdicional Salarial",
+    "col_salario_orc": "Colaborador",
+    "col_promo_salario": "Colaborador",
+    "col_promo_mes": "Colaborador",
+    "col_admissao": "Admissão",
+    "col_media_variavel": "Média",
+    "col_conta_contabil": "Colaborador",
+    "col_vr": "VR",
+    "col_vt": "VT",
+    "col_saude": "Plano Assistência Médica",
+    "col_odonto": "Plano Assistência Odontológica",
+    "col_previdencia": "Previdência Privada",
+    "col_seguro": "Seguro Vida",
+    "col_estacionamento": "Estacionamento",
+    "col_carros": "Carros",
+    "col_creche": "Auxílio Creche",
+    "col_cct_flag": "CCT Flag",
+    "col_cct_pct": "CCT %",
+    "col_cct_mes": "CCT Mês"
+  },
+  "mapping_extras": {},
+  "periodo": {
+    "start_mes": "2026-04",
+    "periods": 12,
+    "du_default": 22
+  },
+  "formulas_selected": [
+    "SALARIO",
+    "VARIAVEL_MEDIA",
+    "DSR",
+    "PROV_FERIAS",
+    "PROV_TERCO_FERIAS",
+    "PROV_13",
+    "AJUSTE_13",
+    "AJUSTE_FERIAS",
+    "AJUSTE_TERCO_FERIAS",
+    "FGTS",
+    "INSS_PATRONAL",
+    "RAT",
+    "TERCEIROS",
+    "VR",
+    "VT",
+    "SAUDE",
+    "ODONTO",
+    "PREVIDENCIA",
+    "SEGURO_VIDA",
+    "ESTACIONAMENTO",
+    "CARROS",
+    "AUX_CRECHE"
+  ]
+}
