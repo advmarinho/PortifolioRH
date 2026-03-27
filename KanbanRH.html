@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa Visual de Atividades RH</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --navy: #121C4E;
+      --navy-2: #1B2A6B;
+      --blue-soft: #EAF2FF;
+      --bg: #F5F7FB;
+      --card: #FFFFFF;
+      --line: #D9E2F1;
+      --text: #1E293B;
+      --shadow: 0 10px 24px rgba(18, 28, 78, 0.10);
+      --radius: 18px;
+      --status-afazer: #E2E3E5;
+      --status-andamento: #FFF3CD;
+      --status-validacao: #CCE5FF;
+      --status-concluido: #D4EDDA;
+      --status-atrasado: #F8D7DA;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .topbar {
+      background: linear-gradient(90deg, var(--navy), var(--navy-2));
+      color: #fff;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      box-shadow: var(--shadow);
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+
+    .topbar small {
+      display: block;
+      opacity: 0.95;
+      margin-top: 4px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button, .file-label {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: 0.2s ease;
+      background: var(--navy);
+      color: #fff;
+    }
+
+    button:hover, .file-label:hover {
+      transform: translateY(-1px);
+      background: var(--navy-2);
+    }
+
+    input[type="file"] { display: none; }
+
+    .container {
+      padding: 20px;
+      max-width: 1650px;
+      margin: 0 auto;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+    }
+
+    .stat .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: #5C6B89;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .stat .value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--navy);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 430px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: var(--navy);
+    }
+
+    .panel-body { padding: 16px 18px 18px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field { margin-bottom: 12px; }
+
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #5C6B89;
+      text-transform: uppercase;
+    }
+
+    .field input, .field select, .field textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      background: #fff;
+      color: var(--text);
+      outline: none;
+    }
+
+    .field textarea {
+      resize: vertical;
+      min-height: 140px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      overflow-wrap: break-word;
+    }
+
+    .actions-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .tab {
+      background: var(--blue-soft);
+      color: var(--navy);
+    }
+
+    .tab.active {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .kanban {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(220px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .column {
+      background: #F8FAFE;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .column-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      font-weight: 800;
+      color: var(--navy);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      border-radius: 16px 16px 0 0;
+    }
+
+    .column-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 420px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-left: 6px solid var(--navy);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 6px 16px rgba(18, 28, 78, 0.08);
+      cursor: grab;
+      user-select: none;
+    }
+
+    .card.status-afazer { background: var(--status-afazer); }
+    .card.status-andamento { background: var(--status-andamento); }
+    .card.status-validacao { background: var(--status-validacao); }
+    .card.status-concluido { background: var(--status-concluido); }
+    .card.status-atrasado { background: var(--status-atrasado); }
+
+    .card h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: var(--navy);
+    }
+
+    .meta {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      color: #334155;
+    }
+
+    .meta div, .multiline {
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    .badge {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-weight: 700;
+      background: #fff;
+      color: var(--navy);
+      border: 1px solid #BFD0EF;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    th, td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #EDF2F7;
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #F8FAFE;
+      color: var(--navy);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      white-space: nowrap;
+    }
+
+    tr.status-afazer td { background: var(--status-afazer); }
+    tr.status-andamento td { background: var(--status-andamento); }
+    tr.status-validacao td { background: var(--status-validacao); }
+    tr.status-concluido td { background: var(--status-concluido); }
+    tr.status-atrasado td { background: var(--status-atrasado); }
+
+    .table-wrap {
+      max-height: 640px;
+      overflow: auto;
+      border-radius: 16px;
+    }
+
+    #viewLista table {
+      table-layout: fixed;
+      width: 100%;
+    }
+
+    #viewLista td, #viewLista th {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    #viewLista th.col-prazo,
+    #viewLista td.col-prazo {
+      width: 100px;
+      min-width: 100px;
+      max-width: 100px;
+      text-align: center;
+    }
+
+    #viewLista th.col-atividade,
+    #viewLista td.col-atividade {
+      width: 320px;
+      min-width: 320px;
+      max-width: 320px;
+    }
+
+    #viewLista th.col-macro,
+    #viewLista td.col-macro {
+      width: 170px;
+      min-width: 170px;
+      max-width: 170px;
+    }
+
+    #viewLista th.col-processo,
+    #viewLista td.col-processo {
+      width: 180px;
+      min-width: 180px;
+      max-width: 180px;
+    }
+
+    #viewLista th.col-responsavel,
+    #viewLista td.col-responsavel,
+    #viewLista th.col-backup,
+    #viewLista td.col-backup {
+      width: 170px;
+      min-width: 170px;
+      max-width: 170px;
+    }
+
+    #viewLista th.col-prioridade,
+    #viewLista td.col-prioridade {
+      width: 95px;
+      min-width: 95px;
+      max-width: 95px;
+      text-align: center;
+    }
+
+    #viewLista th.col-status,
+    #viewLista td.col-status {
+      width: 150px;
+      min-width: 150px;
+      max-width: 150px;
+    }
+
+    #viewLista th.col-acoes,
+    #viewLista td.col-acoes {
+      white-space: nowrap;
+      width: 130px;
+      min-width: 130px;
+      max-width: 130px;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    #viewLista tbody tr {
+      cursor: pointer;
+    }
+
+    .mini {
+      padding: 6px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-group {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .timeline-group h3 {
+      margin: 0;
+      padding: 12px 14px;
+      background: #F8FAFE;
+      color: var(--navy);
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+    }
+
+    .timeline-items {
+      padding: 12px 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .timeline-item {
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .timeline-item.status-afazer { background: var(--status-afazer); }
+    .timeline-item.status-andamento { background: var(--status-andamento); }
+    .timeline-item.status-validacao { background: var(--status-validacao); }
+    .timeline-item.status-concluido { background: var(--status-concluido); }
+    .timeline-item.status-atrasado { background: var(--status-atrasado); }
+
+    .calendar-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 10px;
+    }
+
+    .calendar-weekday {
+      background: #F8FAFE;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      font-weight: 800;
+      color: var(--navy);
+    }
+
+    .calendar-day {
+      min-height: 150px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .calendar-day.empty-day {
+      background: #F8FAFE;
+      opacity: 0.6;
+    }
+
+    .calendar-day.today {
+      outline: 2px solid var(--navy-3);
+    }
+
+    .calendar-day-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 800;
+      color: var(--navy);
+      font-size: 13px;
+    }
+
+    .calendar-count {
+      font-size: 11px;
+      background: var(--blue-soft);
+      color: var(--navy);
+      border-radius: 999px;
+      padding: 3px 7px;
+    }
+
+    .calendar-items {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .calendar-card {
+      border-radius: 10px;
+      padding: 7px 8px;
+      border: 1px solid var(--line);
+      font-size: 12px;
+      cursor: pointer;
+      line-height: 1.3;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    .calendar-card.status-afazer { background: var(--status-afazer); }
+    .calendar-card.status-andamento { background: var(--status-andamento); }
+    .calendar-card.status-validacao { background: var(--status-validacao); }
+    .calendar-card.status-concluido { background: var(--status-concluido); }
+    .calendar-card.status-atrasado { background: var(--status-atrasado); }
+
+    .empty {
+      padding: 20px;
+      text-align: center;
+      color: #5C6B89;
+      font-weight: 700;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #5C6B89;
+      text-align: right;
+    }
+
+    @media (max-width: 1200px) {
+      .layout { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+      .filters { grid-template-columns: 1fr 1fr; }
+      .kanban { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 1000px) {
+      .calendar-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 700px) {
+      .calendar-grid { grid-template-columns: 1fr; }
+
+      .stats { grid-template-columns: 1fr 1fr; }
+      .filters, .grid-2 { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Mapa Visual de Atividades RH</h1>
+      <small>Cadastro operacional, Kanban, concluídos, agenda, importação JSON e exportação</small>
+    </div>
+    <div class="toolbar">
+      <button type="button" onclick="baixarModeloJSON()">Baixar modelo JSON</button>
+      <label class="file-label" for="inputImportarJson">Importar JSON</label>
+      <input id="inputImportarJson" type="file" accept=".json" />
+      <button type="button" onclick="exportarJSON()">Exportar JSON</button>
+      <button type="button" onclick="exportarExcel()">Exportar Excel</button>
+      <button type="button" onclick="resetarAtividades()">Resetar atividades</button>
+      <button type="button" onclick="aplicarResponsavelMassa()">Responsável em massa</button>
+      <button type="button" onclick="limparTudo()">Limpar tudo</button>
+      <button type="button" onclick="ajustarDatasParaDiasUteis()">Ajustar datas para dias úteis</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats" id="stats"></div>
+
+    <div class="layout">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 id="tituloFormulario">Cadastro e Mapeamento</h2>
+        </div>
+        <div class="panel-body">
+          <div class="grid-2">
+            <div class="field">
+              <label>ID</label>
+              <input id="id" type="text" placeholder="Gerado automaticamente" disabled />
+            </div>
+            <div class="field">
+              <label>Status</label>
+              <select id="status">
+                <option>A Fazer</option>
+                <option>Em Andamento</option>
+                <option>Em Validação</option>
+                <option>Concluído</option>
+                <option>Atrasado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Atividade</label>
+            <input id="atividade" type="text" placeholder="Ex.: Conferir fechamento de ponto da empresa 001" />
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Macroprocesso</label>
+              <input id="macroprocesso" type="text" placeholder="Folha, Benefícios, SST, Admissão..." />
+            </div>
+            <div class="field">
+              <label>Processo</label>
+              <input id="processo" type="text" placeholder="Fechamento, conferência, cadastro..." />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Responsável</label>
+              <input id="responsavel" type="text" placeholder="Quem executa" />
+            </div>
+            <div class="field">
+              <label>Backup</label>
+              <input id="backup" type="text" placeholder="Quem cobre" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Prioridade</label>
+              <select id="prioridade">
+                <option>Alta</option>
+                <option>Média</option>
+                <option>Baixa</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Frequência</label>
+              <select id="frequencia">
+                <option>Diária</option>
+                <option>Semanal</option>
+                <option>Quinzenal</option>
+                <option>Mensal</option>
+                <option>Anual</option>
+                <option>Sob demanda</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="field">
+              <label>Prazo</label>
+              <input id="prazo" type="date" />
+            </div>
+            <div class="field">
+              <label>Criticidade</label>
+              <select id="criticidade">
+                <option>Legal</option>
+                <option>Operacional</option>
+                <option>Compliance</option>
+                <option>Experiência colaborador</option>
+                <option>Financeira</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Evidência / Saída</label>
+            <textarea id="evidencia" placeholder="Planilha, protocolo, e-mail, relatório, recibo..."></textarea>
+          </div>
+
+          <div class="field">
+            <label>Risco se falhar</label>
+            <textarea id="risco" placeholder="Descreva o impacto caso a atividade não seja executada"></textarea>
+          </div>
+
+          <div class="field">
+            <label>Observações</label>
+            <textarea id="observacoes" placeholder="Dependências, detalhe do fluxo, observações da coordenação"></textarea>
+          </div>
+
+          <div class="actions-row">
+            <button type="button" onclick="salvarAtividade()">Salvar atividade</button>
+            <button type="button" onclick="novoRegistro()">Novo</button>
+            <button type="button" onclick="duplicarSelecionado()">Duplicar</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="tabs">
+          <button type="button" class="tab active" data-tab="kanban" onclick="trocarAba('kanban')">Kanban</button>
+          <button type="button" class="tab" data-tab="lista" onclick="trocarAba('lista')">Lista Mestre</button>
+          <button type="button" class="tab" data-tab="concluidos" onclick="trocarAba('concluidos')">Concluídos</button>
+          <button type="button" class="tab" data-tab="agenda" onclick="trocarAba('agenda')">Agenda Visual</button>
+          <button type="button" class="tab" data-tab="calendario" onclick="trocarAba('calendario')">Calendário Mensal</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2 id="tituloAba">Kanban</h2>
+          </div>
+          <div class="panel-body">
+            <div class="filters">
+              <input id="filtroBusca" type="text" placeholder="Buscar atividade, responsável, processo..." oninput="renderizarTudo()" />
+              <select id="filtroResponsavel" onchange="renderizarTudo()"></select>
+              <select id="filtroMacro" onchange="renderizarTudo()"></select>
+              <select id="filtroStatus" onchange="renderizarTudo()"></select>
+              <select id="filtroPrioridade" onchange="renderizarTudo()"></select>
+            </div>
+
+            <div id="viewKanban"></div>
+            <div id="viewLista" style="display:none"></div>
+            <div id="viewConcluidos" style="display:none"></div>
+            <div id="viewAgenda" style="display:none"></div>
+            <div id="viewCalendario" style="display:none"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">Anderson Marinho | Igarapé Digital</div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'mapa_rh_visual_v3';
+    let atividades = [];
+    let abaAtual = 'kanban';
+    let editandoId = null;
+    let dragId = null;
+
+    function uid() {
+      return 'ATV-' + Date.now() + '-' + Math.floor(Math.random() * 100000);
+    }
+
+    function escapeHtml(txt) {
+      return String(txt || '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function nl2br(txt) {
+      return escapeHtml(txt).replace(/\n/g, '<br>');
+    }
+
+    function classeStatus(status) {
+      if (status === 'A Fazer') return 'status-afazer';
+      if (status === 'Em Andamento') return 'status-andamento';
+      if (status === 'Em Validação') return 'status-validacao';
+      if (status === 'Concluído') return 'status-concluido';
+      if (status === 'Atrasado') return 'status-atrasado';
+      return '';
+    }
+
+    function formatarData(valor) {
+      if (!valor) return '-';
+      const d = new Date(valor + 'T00:00:00');
+      if (isNaN(d)) return valor;
+      return d.toLocaleDateString('pt-BR');
+    }
+
+    function formatarDataHora(valor) {
+      if (!valor) return '-';
+      const d = new Date(valor);
+      if (isNaN(d)) return valor;
+      return d.toLocaleString('pt-BR');
+    }
+
+    function autoResizeTextareas() {
+      document.querySelectorAll('textarea').forEach(el => {
+        el.style.height = 'auto';
+        el.style.height = Math.max(el.scrollHeight, 140) + 'px';
+      });
+    }
+
+    document.addEventListener('input', (event) => {
+      if (event.target && event.target.tagName === 'TEXTAREA') {
+        event.target.style.height = 'auto';
+        event.target.style.height = Math.max(event.target.scrollHeight, 140) + 'px';
+      }
+    });
+
+    function dadosExemplo() {
+      return [];
+    }
+
+    function carregarStorage() {
+      const salvo = localStorage.getItem(STORAGE_KEY);
+      if (salvo) {
+        try {
+          atividades = JSON.parse(salvo);
+          if (!Array.isArray(atividades)) atividades = [];
+        } catch {
+          atividades = [];
+        }
+      } else {
+        atividades = dadosExemplo();
+        salvarStorage();
+      }
+    }
+
+    function salvarStorage() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(atividades));
+    }
+
+    function atualizarTituloFormulario(editando) {
+      document.getElementById('tituloFormulario').textContent = editando ? 'Cadastro e Mapeamento - Editando' : 'Cadastro e Mapeamento';
+    }
+
+    function novoRegistro() {
+      editandoId = null;
+      document.getElementById('id').value = '';
+      document.getElementById('atividade').value = '';
+      document.getElementById('macroprocesso').value = '';
+      document.getElementById('processo').value = '';
+      document.getElementById('responsavel').value = '';
+      document.getElementById('backup').value = '';
+      document.getElementById('prioridade').value = 'Alta';
+      document.getElementById('frequencia').value = 'Diária';
+      document.getElementById('prazo').value = '';
+      document.getElementById('criticidade').value = 'Legal';
+      document.getElementById('evidencia').value = '';
+      document.getElementById('risco').value = '';
+      document.getElementById('observacoes').value = '';
+      document.getElementById('status').value = 'A Fazer';
+      atualizarTituloFormulario(false);
+      autoResizeTextareas();
+    }
+
+    function lerFormulario() {
+      return {
+        id: editandoId || uid(),
+        atividade: document.getElementById('atividade').value.trim(),
+        macroprocesso: document.getElementById('macroprocesso').value.trim(),
+        processo: document.getElementById('processo').value.trim(),
+        responsavel: document.getElementById('responsavel').value.trim(),
+        backup: document.getElementById('backup').value.trim(),
+        prioridade: document.getElementById('prioridade').value,
+        frequencia: document.getElementById('frequencia').value,
+        prazo: document.getElementById('prazo').value,
+        criticidade: document.getElementById('criticidade').value,
+        evidencia: document.getElementById('evidencia').value,
+        risco: document.getElementById('risco').value,
+        observacoes: document.getElementById('observacoes').value,
+        status: document.getElementById('status').value,
+      };
+    }
+
+    function salvarAtividade() {
+      const item = lerFormulario();
+      if (!item.atividade) {
+        alert('Informe a atividade.');
+        return;
+      }
+      if (!item.responsavel) {
+        alert('Informe o responsável.');
+        return;
+      }
+
+      const idx = atividades.findIndex(a => String(a.id) === String(item.id));
+      if (idx >= 0) {
+        const anterior = atividades[idx];
+        item.criadoEm = anterior.criadoEm || new Date().toISOString();
+        item.concluidoEm = item.status === 'Concluído' ? (anterior.concluidoEm || new Date().toISOString()) : '';
+        atividades[idx] = { ...anterior, ...item };
+      } else {
+        item.criadoEm = new Date().toISOString();
+        item.concluidoEm = item.status === 'Concluído' ? new Date().toISOString() : '';
+        atividades.unshift(item);
+      }
+
+      salvarStorage();
+      popularFiltros();
+      renderizarTudo();
+      novoRegistro();
+    }
+
+    function editar(id) {
+      const a = atividades.find(x => String(x.id) === String(id));
+      if (!a) {
+        alert('Não foi possível localizar a atividade para edição.');
+        return;
+      }
+      editandoId = a.id;
+      document.getElementById('id').value = a.id || '';
+      document.getElementById('atividade').value = a.atividade || '';
+      document.getElementById('macroprocesso').value = a.macroprocesso || '';
+      document.getElementById('processo').value = a.processo || '';
+      document.getElementById('responsavel').value = a.responsavel || '';
+      document.getElementById('backup').value = a.backup || '';
+      document.getElementById('prioridade').value = a.prioridade || 'Alta';
+      document.getElementById('frequencia').value = a.frequencia || 'Diária';
+      document.getElementById('prazo').value = a.prazo || '';
+      document.getElementById('criticidade').value = a.criticidade || 'Legal';
+      document.getElementById('evidencia').value = a.evidencia || '';
+      document.getElementById('risco').value = a.risco || '';
+      document.getElementById('observacoes').value = a.observacoes || '';
+      document.getElementById('status').value = a.status || 'A Fazer';
+      atualizarTituloFormulario(true);
+      autoResizeTextareas();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function duplicarSelecionado() {
+      const atividadeAtual = document.getElementById('atividade').value.trim();
+      if (!atividadeAtual) {
+        alert('Carregue ou digite uma atividade para duplicar.');
+        return;
+      }
+
+      editandoId = null;
+      document.getElementById('id').value = '';
+      document.getElementById('atividade').value = atividadeAtual + ' - cópia';
+      atualizarTituloFormulario(false);
+      autoResizeTextareas();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function excluir(id) {
+      if (!confirm('Deseja excluir esta atividade?')) return;
+      atividades = atividades.filter(a => String(a.id) !== String(id));
+      salvarStorage();
+      popularFiltros();
+      renderizarTudo();
+      if (String(editandoId) === String(id)) novoRegistro();
+    }
+
+    function mudarStatus(id, novoStatus) {
+      const item = atividades.find(a => String(a.id) === String(id));
+      if (!item) return;
+      item.status = novoStatus;
+      item.concluidoEm = novoStatus === 'Concluído' ? (item.concluidoEm || new Date().toISOString()) : '';
+      salvarStorage();
+      renderizarTudo();
+    }
+
+    function preencherSelect(id, valores, primeiroTexto) {
+      const sel = document.getElementById(id);
+      const atual = sel.value;
+      sel.innerHTML = '';
+      valores.forEach((v, i) => {
+        const op = document.createElement('option');
+        op.value = v;
+        op.textContent = i === 0 ? primeiroTexto : v;
+        sel.appendChild(op);
+      });
+      sel.value = valores.includes(atual) ? atual : '';
+    }
+
+    function popularFiltros() {
+      const responsaveis = [...new Set(atividades.map(a => a.responsavel).filter(Boolean))].sort();
+      const macros = [...new Set(atividades.map(a => a.macroprocesso).filter(Boolean))].sort();
+      preencherSelect('filtroResponsavel', [''].concat(responsaveis), 'Todos os responsáveis');
+      preencherSelect('filtroMacro', [''].concat(macros), 'Todos os macroprocessos');
+      preencherSelect('filtroStatus', ['', 'A Fazer', 'Em Andamento', 'Em Validação', 'Concluído', 'Atrasado'], 'Todos os status');
+      preencherSelect('filtroPrioridade', ['', 'Alta', 'Média', 'Baixa'], 'Todas as prioridades');
+    }
+
+    function filtrarAtividades() {
+      const busca = document.getElementById('filtroBusca').value.trim().toLowerCase();
+      const responsavel = document.getElementById('filtroResponsavel').value;
+      const macro = document.getElementById('filtroMacro').value;
+      const status = document.getElementById('filtroStatus').value;
+      const prioridade = document.getElementById('filtroPrioridade').value;
+
+      return atividades.filter(a => {
+        const texto = [
+          a.atividade, a.macroprocesso, a.processo, a.responsavel, a.backup,
+          a.risco, a.observacoes, a.evidencia
+        ].join(' ').toLowerCase();
+
+        return (!busca || texto.includes(busca)) &&
+          (!responsavel || a.responsavel === responsavel) &&
+          (!macro || a.macroprocesso === macro) &&
+          (!status || a.status === status) &&
+          (!prioridade || a.prioridade === prioridade);
+      });
+    }
+
+    function ordenarPorPrazo(lista) {
+      return lista.slice().sort((a, b) => {
+        const da = a.prazo ? new Date(a.prazo + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.prazo ? new Date(b.prazo + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
+      });
+    }
+
+    function renderizarStats() {
+      const total = atividades.length;
+      const concluidas = atividades.filter(a => a.status === 'Concluído').length;
+      const atrasadas = atividades.filter(a => a.status === 'Atrasado').length;
+      const semBackup = atividades.filter(a => !a.backup).length;
+      const altas = atividades.filter(a => a.prioridade === 'Alta').length;
+      const responsaveis = new Set(atividades.map(a => a.responsavel).filter(Boolean)).size;
+
+      const cards = [
+        ['Total de atividades', total],
+        ['Concluídas', concluidas],
+        ['Atrasadas', atrasadas],
+        ['Sem backup', semBackup],
+        ['Prioridade alta', altas],
+        ['Responsáveis', responsaveis],
+      ];
+
+      document.getElementById('stats').innerHTML = cards.map(c => `
+        <div class="stat">
+          <div class="label">${c[0]}</div>
+          <div class="value">${c[1]}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderCard(a) {
+      return `
+        <div class="card ${classeStatus(a.status)}" draggable="true" ondragstart="iniciarDrag(event, '${a.id}')" ondragend="finalizarDrag()" ondblclick="editar('${a.id}')" title="Duplo clique para editar">
+          <h3>${escapeHtml(a.atividade)}</h3>
+          <div class="meta">
+            <div><strong>Responsável:</strong> ${escapeHtml(a.responsavel || '-')}</div>
+            <div><strong>Macro:</strong> ${escapeHtml(a.macroprocesso || '-')}</div>
+            <div><strong>Prazo:</strong> ${formatarData(a.prazo)}</div>
+            <div><strong>Evidência:</strong> <span class="multiline">${nl2br(a.evidencia || '-')}</span></div>
+          </div>
+          <div class="badge-row">
+            <span class="badge">${escapeHtml(a.prioridade || '-')}</span>
+            <span class="badge">${escapeHtml(a.frequencia || '-')}</span>
+            <span class="badge">${escapeHtml(a.criticidade || '-')}</span>
+            <span class="badge">${escapeHtml(a.status || '-')}</span>
+          </div>
+          <div class="row-actions" style="margin-top:10px;">
+            <button type="button" class="mini" onclick="event.stopPropagation(); editar('${a.id}')">Editar</button>
+            <button type="button" class="mini" onclick="event.stopPropagation(); excluir('${a.id}')">Excluir</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderizarKanban() {
+      const base = filtrarAtividades();
+      const colunas = ['A Fazer', 'Em Andamento', 'Em Validação', 'Concluído', 'Atrasado'];
+      const html = `
+        <div class="kanban">
+          ${colunas.map(status => {
+            const itens = ordenarPorPrazo(base.filter(a => a.status === status));
+            return `
+              <div class="column">
+                <div class="column-header">
+                  <span>${status}</span>
+                  <span>${itens.length}</span>
+                </div>
+                <div class="column-body" ondragover="permitirDrop(event)" ondrop="soltar(event, '${status}')">
+                  ${itens.length ? itens.map(renderCard).join('') : '<div class="empty">Sem atividades</div>'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      document.getElementById('viewKanban').innerHTML = html;
+    }
+
+    function renderizarLista() {
+      const base = ordenarPorPrazo(filtrarAtividades());
+      const html = !base.length ? '<div class="empty">Nenhuma atividade encontrada.</div>' : `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-prazo">Prazo</th>
+                <th class="col-atividade">Atividade</th>
+                <th class="col-macro">Macro</th>
+                <th class="col-processo">Processo</th>
+                <th class="col-responsavel">Responsável</th>
+                <th class="col-backup">Backup</th>
+                <th class="col-prioridade">Prioridade</th>
+                <th class="col-status">Status</th>
+                <th class="col-acoes">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${base.map(a => `
+                <tr class="${classeStatus(a.status)}" onclick="editar('${a.id}')">
+                  <td class="col-prazo">${formatarData(a.prazo)}</td>
+                  <td class="col-atividade" title="${escapeHtml(a.atividade)}">${escapeHtml(a.atividade)}</td>
+                  <td class="col-macro" title="${escapeHtml(a.macroprocesso || '-')}">${escapeHtml(a.macroprocesso || '-')}</td>
+                  <td class="col-processo" title="${escapeHtml(a.processo || '-')}">${escapeHtml(a.processo || '-')}</td>
+                  <td class="col-responsavel" title="${escapeHtml(a.responsavel || '-')}">${escapeHtml(a.responsavel || '-')}</td>
+                  <td class="col-backup" title="${escapeHtml(a.backup || '-')}">${escapeHtml(a.backup || '-')}</td>
+                  <td class="col-prioridade">${escapeHtml(a.prioridade || '-')}</td>
+                  <td class="col-status">
+                    <select onchange="mudarStatus('${a.id}', this.value)">
+                      ${['A Fazer','Em Andamento','Em Validação','Concluído','Atrasado'].map(s => `<option ${a.status===s?'selected':''}>${s}</option>`).join('')}
+                    </select>
+                  </td>
+                  <td class="col-acoes">
+                    <div class="row-actions">
+                      <button type="button" class="mini" onclick="event.stopPropagation(); editar('${a.id}')">Editar</button>
+                      <button type="button" class="mini" onclick="event.stopPropagation(); excluir('${a.id}')">Excluir</button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('viewLista').innerHTML = html;
+    }
+
+    function renderizarConcluidos() {
+      const base = ordenarPorPrazo(filtrarAtividades().filter(a => a.status === 'Concluído'));
+      const html = !base.length ? '<div class="empty">Nenhuma atividade concluída no filtro atual.</div>' : `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Atividade</th>
+                <th>Responsável</th>
+                <th>Macro</th>
+                <th>Concluído em</th>
+                <th>Evidência</th>
+                <th>Observações</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${base.map(a => `
+                <tr class="${classeStatus(a.status)}">
+                  <td>${escapeHtml(a.atividade)}</td>
+                  <td>${escapeHtml(a.responsavel || '-')}</td>
+                  <td>${escapeHtml(a.macroprocesso || '-')}</td>
+                  <td>${formatarDataHora(a.concluidoEm)}</td>
+                  <td><div class="multiline">${nl2br(a.evidencia || '-')}</div></td>
+                  <td><div class="multiline">${nl2br(a.observacoes || '-')}</div></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+      document.getElementById('viewConcluidos').innerHTML = html;
+    }
+
+    function renderizarAgenda() {
+      const base = filtrarAtividades();
+      const grupos = ['Diária', 'Semanal', 'Quinzenal', 'Mensal', 'Anual', 'Sob demanda'];
+      const ordenarPorPrazo = (lista) => lista.slice().sort((a, b) => {
+        const da = a.prazo ? new Date(a.prazo + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+        const db = b.prazo ? new Date(b.prazo + 'T00:00:00').getTime() : Number.MAX_SAFE_INTEGER;
+        return da - db;
+      });
+      const html = `
+        <div class="timeline">
+          ${grupos.map(g => {
+            const itens = ordenarPorPrazo(base.filter(a => a.frequencia === g));
+            return `
+              <div class="timeline-group">
+                <h3>${g} (${itens.length})</h3>
+                <div class="timeline-items">
+                  ${itens.length ? itens.map(a => `
+                    <div class="timeline-item ${classeStatus(a.status)}" onclick="editar('${a.id}')" style="cursor:pointer;" title="Clique para editar">
+                      <strong>${escapeHtml(a.atividade)}</strong><br>
+                      <span class="multiline">Responsável: ${escapeHtml(a.responsavel || '-')} | Status: ${escapeHtml(a.status || '-')} | Prazo: ${formatarData(a.prazo)}</span>
+                    </div>
+                  `).join('') : '<div class="empty" style="padding:8px;">Sem atividades</div>'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      document.getElementById('viewAgenda').innerHTML = html;
+    }
+
+    let calendarioMes = new Date().getMonth();
+    let calendarioAno = new Date().getFullYear();
+
+    function mudarMesCalendario(delta) {
+      calendarioMes += delta;
+      if (calendarioMes < 0) {
+        calendarioMes = 11;
+        calendarioAno -= 1;
+      }
+      if (calendarioMes > 11) {
+        calendarioMes = 0;
+        calendarioAno += 1;
+      }
+      renderizarCalendario();
+    }
+
+    function renderizarCalendario() {
+      const base = filtrarAtividades().filter(a => a.prazo);
+      const primeiroDia = new Date(calendarioAno, calendarioMes, 1);
+      const ultimoDia = new Date(calendarioAno, calendarioMes + 1, 0);
+      const diasNoMes = ultimoDia.getDate();
+      const inicioSemana = primeiroDia.getDay();
+      const hoje = new Date();
+      const nomesSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const nomeMes = primeiroDia.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+      const porDia = {};
+      for (let d = 1; d <= diasNoMes; d++) {
+        const dataIso = new Date(calendarioAno, calendarioMes, d);
+        const iso = new Date(dataIso.getTime() - dataIso.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        porDia[iso] = [];
+      }
+
+      base.forEach(a => {
+        if (porDia[a.prazo]) porDia[a.prazo].push(a);
+      });
+
+      Object.keys(porDia).forEach(chave => {
+        porDia[chave].sort((a, b) => (a.atividade || '').localeCompare(b.atividade || '', 'pt-BR'));
+      });
+
+      let cells = '';
+      for (let i = 0; i < inicioSemana; i++) {
+        cells += `<div class="calendar-day empty-day"></div>`;
+      }
+
+      for (let dia = 1; dia <= diasNoMes; dia++) {
+        const dataObj = new Date(calendarioAno, calendarioMes, dia);
+        const iso = new Date(dataObj.getTime() - dataObj.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        const itens = porDia[iso] || [];
+        const isToday = hoje.getFullYear() === calendarioAno && hoje.getMonth() === calendarioMes && hoje.getDate() === dia;
+        cells += `
+          <div class="calendar-day ${isToday ? 'today' : ''}">
+            <div class="calendar-day-header">
+              <span>${dia}</span>
+              <span class="calendar-count">${itens.length}</span>
+            </div>
+            <div class="calendar-items">
+              ${itens.length ? itens.map(a => `
+                <div class="calendar-card ${classeStatus(a.status)}" onclick="editar('${a.id}')" title="Clique para editar">
+                  <strong>${escapeHtml(a.atividade)}</strong><br>
+                  <span>${escapeHtml(a.responsavel || '-')}</span>
+                </div>
+              `).join('') : '<div class="empty" style="padding:6px; font-size:11px;">Sem atividades</div>'}
+            </div>
+          </div>
+        `;
+      }
+
+      const html = `
+        <div class="calendar-toolbar">
+          <button type="button" onclick="mudarMesCalendario(-1)">Mês anterior</button>
+          <h3 style="margin:0; color: var(--navy); text-transform: capitalize;">${nomeMes}</h3>
+          <button type="button" onclick="mudarMesCalendario(1)">Próximo mês</button>
+        </div>
+        <div class="calendar-grid">
+          ${nomesSemana.map(n => `<div class="calendar-weekday">${n}</div>`).join('')}
+          ${cells}
+        </div>
+      `;
+      document.getElementById('viewCalendario').innerHTML = html;
+    }
+
+    function trocarAba(nome) {
+      abaAtual = nome;
+      document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === nome));
+      document.getElementById('viewKanban').style.display = nome === 'kanban' ? 'block' : 'none';
+      document.getElementById('viewLista').style.display = nome === 'lista' ? 'block' : 'none';
+      document.getElementById('viewConcluidos').style.display = nome === 'concluidos' ? 'block' : 'none';
+      document.getElementById('viewAgenda').style.display = nome === 'agenda' ? 'block' : 'none';
+      document.getElementById('viewCalendario').style.display = nome === 'calendario' ? 'block' : 'none';
+      const titulos = { kanban: 'Kanban', lista: 'Lista Mestre', concluidos: 'Concluídos', agenda: 'Agenda Visual', calendario: 'Calendário Mensal' };
+      document.getElementById('tituloAba').textContent = titulos[nome];
+      renderizarTudo();
+    }
+
+    function renderizarTudo() {
+      renderizarStats();
+      if (abaAtual === 'kanban') renderizarKanban();
+      if (abaAtual === 'lista') renderizarLista();
+      if (abaAtual === 'concluidos') renderizarConcluidos();
+      if (abaAtual === 'agenda') renderizarAgenda();
+      if (abaAtual === 'calendario') renderizarCalendario();
+    }
+
+    function iniciarDrag(event, id) {
+      dragId = id;
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(id));
+      const card = event.currentTarget;
+      if (card) card.style.opacity = '0.6';
+    }
+
+    function finalizarDrag() {
+      document.querySelectorAll('.card').forEach(card => {
+        card.style.opacity = '1';
+      });
+    }
+
+    function permitirDrop(event) {
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    function soltar(event, status) {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = event.dataTransfer.getData('text/plain') || dragId;
+      if (!id) return;
+      mudarStatus(id, status);
+      dragId = null;
+      finalizarDrag();
+    }
+
+    function baixarArquivo(blob, nome) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nome;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportarJSON() {
+      const blob = new Blob([JSON.stringify(atividades, null, 2)], { type: 'application/json;charset=utf-8' });
+      baixarArquivo(blob, 'mapa_rh_visual.json');
+    }
+
+    function baixarModeloJSON() {
+      const modelo = [{
+        atividade: 'Nome da atividade',
+        macroprocesso: 'Folha',
+        processo: 'Conferência',
+        responsavel: 'Nome responsável',
+        backup: 'Nome backup',
+        prioridade: 'Alta',
+        frequencia: 'Mensal',
+        prazo: '2026-03-31',
+        criticidade: 'Legal',
+        evidencia: 'Relatório final',
+        risco: 'Risco de atraso ou passivo',
+        observacoes: 'Observação da coordenação',
+        status: 'A Fazer'
+      }];
+      const blob = new Blob([JSON.stringify(modelo, null, 2)], { type: 'application/json;charset=utf-8' });
+      baixarArquivo(blob, 'modelo_mapa_rh_visual.json');
+    }
+
+    function gerarResumoExportacao() {
+      const total = atividades.length;
+      const porStatus = ['A Fazer', 'Em Andamento', 'Em Validação', 'Concluído', 'Atrasado'].map(s => ({ Indicador: 'Status - ' + s, Valor: atividades.filter(a => a.status === s).length }));
+      const porPrioridade = ['Alta', 'Média', 'Baixa'].map(p => ({ Indicador: 'Prioridade - ' + p, Valor: atividades.filter(a => a.prioridade === p).length }));
+      return [{ Indicador: 'Total de atividades', Valor: total }].concat(porStatus).concat(porPrioridade);
+    }
+
+    function exportarExcel() {
+      const wsBase = XLSX.utils.json_to_sheet(atividades.map(a => ({
+        ID: a.id,
+        Atividade: a.atividade,
+        Macroprocesso: a.macroprocesso,
+        Processo: a.processo,
+        Responsavel: a.responsavel,
+        Backup: a.backup,
+        Prioridade: a.prioridade,
+        Frequencia: a.frequencia,
+        Prazo: a.prazo,
+        Criticidade: a.criticidade,
+        Evidencia: a.evidencia,
+        Risco: a.risco,
+        Observacoes: a.observacoes,
+        Status: a.status,
+        CriadoEm: a.criadoEm,
+        ConcluidoEm: a.concluidoEm
+      })));
+
+      const wsConcluidos = XLSX.utils.json_to_sheet(atividades.filter(a => a.status === 'Concluído').map(a => ({
+        ID: a.id,
+        Atividade: a.atividade,
+        Responsavel: a.responsavel,
+        ConcluidoEm: a.concluidoEm,
+        Evidencia: a.evidencia,
+        Observacoes: a.observacoes
+      })));
+
+      const wsResumo = XLSX.utils.json_to_sheet(gerarResumoExportacao());
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo');
+      XLSX.utils.book_append_sheet(wb, wsBase, 'Base_Atividades');
+      XLSX.utils.book_append_sheet(wb, wsConcluidos, 'Concluidos');
+      XLSX.writeFile(wb, 'Mapa_RH_Visual.xlsx');
+    }
+
+    function resetarAtividades() {
+      if (!atividades.length) {
+        alert('Não há atividades para resetar.');
+        return;
+      }
+      if (!confirm('Deseja resetar o status de todas as atividades para A Fazer?')) return;
+      atividades = atividades.map(item => ({ ...item, status: 'A Fazer', concluidoEm: '' }));
+      salvarStorage();
+      renderizarTudo();
+      alert('Todas as atividades foram resetadas para A Fazer.');
+    }
+
+    function aplicarResponsavelMassa() {
+      if (!atividades.length) {
+        alert('Não há atividades para atualizar.');
+        return;
+      }
+      const nome = prompt('Informe o responsável que será aplicado em massa:');
+      if (nome === null) return;
+      const responsavel = nome.trim();
+      if (!responsavel) {
+        alert('Informe um nome válido.');
+        return;
+      }
+      const aplicarSomenteVazios = confirm('Deseja aplicar somente nas atividades sem responsável?\nOK = somente vazios | Cancelar = substituir todos');
+      atividades = atividades.map(item => ({
+        ...item,
+        responsavel: aplicarSomenteVazios
+          ? ((item.responsavel || '').trim() ? item.responsavel : responsavel)
+          : responsavel
+      }));
+      salvarStorage();
+      popularFiltros();
+      renderizarTudo();
+      alert('Responsável aplicado com sucesso.');
+    }
+
+    function limparTudo() {
+      if (!confirm('Deseja apagar todas as atividades?')) return;
+      atividades = [];
+      salvarStorage();
+      popularFiltros();
+      renderizarTudo();
+      novoRegistro();
+    }
+
+    function proximoDiaUtil(dataIso) {
+      if (!dataIso) return dataIso;
+      const partes = dataIso.split('-').map(Number);
+      if (partes.length !== 3) return dataIso;
+      const data = new Date(partes[0], partes[1] - 1, partes[2]);
+      const diaSemana = data.getDay();
+      if (diaSemana === 6) {
+        data.setDate(data.getDate() + 2);
+      } else if (diaSemana === 0) {
+        data.setDate(data.getDate() + 1);
+      }
+      const ajustada = new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      return ajustada;
+    }
+
+    function ajustarDatasParaDiasUteis() {
+      const comPrazo = atividades.filter(a => a.prazo);
+      if (!comPrazo.length) {
+        alert('Não há atividades com prazo para ajustar.');
+        return;
+      }
+      let alteradas = 0;
+      atividades = atividades.map(a => {
+        if (!a.prazo) return a;
+        const novaData = proximoDiaUtil(a.prazo);
+        if (novaData !== a.prazo) {
+          alteradas += 1;
+          return { ...a, prazo: novaData };
+        }
+        return a;
+      });
+      salvarStorage();
+      renderizarTudo();
+      if (editandoId) {
+        const atual = atividades.find(x => String(x.id) === String(editandoId));
+        if (atual) editar(atual.id);
+      }
+      alert(alteradas
+        ? `Ajuste concluído. ${alteradas} atividade(s) movida(s) de fim de semana para dia útil.`
+        : 'Nenhuma atividade estava em fim de semana.');
+    }
+
+    function normalizarAtividadeImportada(item, indice) {
+      return {
+        id: item.id || ('IMP-' + Date.now() + '-' + indice),
+        atividade: item.atividade || 'Atividade sem nome',
+        macroprocesso: item.macroprocesso || '',
+        processo: item.processo || '',
+        responsavel: item.responsavel || '',
+        backup: item.backup || '',
+        prioridade: item.prioridade || 'Média',
+        frequencia: item.frequencia || 'Sob demanda',
+        prazo: item.prazo || '',
+        criticidade: item.criticidade || 'Operacional',
+        evidencia: item.evidencia || '',
+        risco: item.risco || '',
+        observacoes: item.observacoes || '',
+        status: item.status || 'A Fazer',
+        criadoEm: item.criadoEm || new Date().toISOString(),
+        concluidoEm: item.concluidoEm || '',
+        categoriaMapa: item.categoriaMapa || '',
+        origem: item.origem || 'Importação JSON',
+        tempo: item.tempo || '',
+        retrabalho: item.retrabalho || '',
+        sla: item.sla || '',
+        confiabilidade: item.confiabilidade || ''
+      };
+    }
+
+    document.getElementById('inputImportarJson').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const texto = await file.text();
+        const json = JSON.parse(texto);
+        if (!Array.isArray(json)) throw new Error('Formato inválido');
+        atividades = json.map((item, indice) => normalizarAtividadeImportada(item, indice));
+        salvarStorage();
+        popularFiltros();
+        renderizarTudo();
+        novoRegistro();
+        autoResizeTextareas();
+        alert('Importação concluída com sucesso. ' + atividades.length + ' atividades carregadas.');
+      } catch (err) {
+        console.error(err);
+        alert('Não foi possível importar o JSON. Verifique o arquivo e o formato.');
+      } finally {
+        e.target.value = '';
+      }
+    });
+
+    carregarStorage();
+    popularFiltros();
+    renderizarTudo();
+    novoRegistro();
+    autoResizeTextareas();
+  </script>
+</body>
+</html>
