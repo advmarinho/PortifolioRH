@@ -317,15 +317,12 @@ class PDFRenamerCustomerThink:
         return text
 
     def find_cpf_in_text(self, text):
-        padroes = [
-            r"\d{3}\.\d{3}\.\d{3}-\d{2}",
-            r"\b\d{11}\b"
-        ]
+        candidatos = re.findall(r"(?<!\d)(?:\d[\.\-\s]*){10}\d(?!\d)", text)
 
-        for padrao in padroes:
-            match = re.search(padrao, text)
-            if match:
-                return re.sub(r"\D", "", match.group())
+        for candidato in candidatos:
+            cpf_limpo = re.sub(r"\D", "", candidato)
+            if len(cpf_limpo) == 11:
+                return cpf_limpo
 
         return "SEMCPF"
 
